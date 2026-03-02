@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import csv
 from pathlib import Path
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,12 +17,35 @@ from src.model.coupling import delta_accel
 from src.verify.utils import dump_json, make_results_dir
 
 
-def _jump_stats(u: np.ndarray, switch_steps: list[int]) -> list[float]:
+def _jump_stats(u: np.ndarray, switch_steps: list[int]) -> tuple[list[float], list[int]]:
     jumps: list[float] = []
+    valid_steps: list[int] = []
     for k in switch_steps:
         if 1 <= k < len(u):
             jumps.append(float(np.linalg.norm(u[k] - u[k - 1])))
-    return jumps
+            valid_steps.append(int(k))
+    return jumps, valid_steps
+
+
+def _window_rows(sim: dict, center_k: int, width: int = 10) -> list[dict[str, float | int]]:
+    u_old = np.asarray(sim["u_old"])
+    u_new = np.asarray(sim["u_new"])
+    u_applied = np.asarray(sim["u_applied"])
+    rho = np.asarray(sim["rho"])
+    k0 = max(0, center_k - width)
+    k1 = min(len(u_applied), center_k + width + 1)
+    rows: list[dict[str, float | int]] = []
+    for k in range(k0, k1):
+        rows.append(
+            {
+                "k": int(k),
+                "rho": float(rho[k]),
+                "u_old_norm": float(np.linalg.norm(u_old[k])),
+                "u_new_norm": float(np.linalg.norm(u_new[k])),
+                "u_applied_norm": float(np.linalg.norm(u_applied[k])),
+            }
+        )
+    return rows
 
 
 def run_gate3(cfg_path: str) -> Path:
@@ -52,10 +77,36 @@ def run_gate3(cfg_path: str) -> Path:
     c_overline = float(2.0 * cfg.system.a_downwash * (cfg.system.N - 1))
     L_psi = float(1.0 + c_overline)
 
-    jumps_off = _jump_stats(np.asarray(sim_off["u"]), list(sim_off["switch_steps"]))
-    jumps_on = _jump_stats(np.asarray(sim_on["u"]), list(sim_on["switch_steps"]))
+    u_off = np.asarray(sim_off["u_applied"])
+    u_on = np.asarray(sim_on["u_applied"])
+    u_old_on = np.asarray(sim_on["u_old"])
+    u_new_on = np.asarray(sim_on["u_new"])
+
+    jumps_off, valid_steps_off = _jump_stats(u_off, list(sim_off["switch_steps"]))
+    jumps_on, valid_steps_on = _jump_stats(u_on, list(sim_on["switch_steps"]))
+    raw_on = [float(np.linalg.norm(u_new_on[k] - u_old_on[k])) for k in valid_steps_on]
     J_off = float(max(jumps_off)) if jumps_off else 0.0
-    J_on = float(max(jumps_on)) if jumps_on else 0.0
+    J_on_applied = float(max(jumps_on)) if jumps_on else 0.0
+    J_on_raw = float(max(raw_on)) if raw_on else 0.0
+
+    no_mode_mismatch = len(valid_steps_on) > 0 and J_on_raw <= 1.0e-12
+    if no_mode_mismatch:
+        warnings.warn(
+            "No mode mismatch: u_old == u_new at switches (toy may not exercise Case B inversion mismatch).",
+            stacklevel=1,
+        )
+
+    improve_target = 0.8 * J_off if J_off > 0.0 else 1.0e-3
+    assert_ok = J_on_applied <= improve_target + 1.0e-6
+    if not assert_ok:
+        # Dump a local diagnostic window around the worst blended jump.
+        worst_idx = int(np.argmax(np.asarray(jumps_on)))
+        center_k = valid_steps_on[worst_idx]
+        rows = _window_rows(sim_on, center_k=center_k, width=10)
+        with (out_dir / "blending_assert_window.csv").open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["k", "rho", "u_old_norm", "u_new_norm", "u_applied_norm"])
+            writer.writeheader()
+            writer.writerows(rows)
 
     payload = {
         "gate": "Gate 3",
@@ -63,7 +114,12 @@ def run_gate3(cfg_path: str) -> Path:
         "c_overline": c_overline,
         "L_Psi": L_psi,
         "J_without_blending": J_off,
-        "J_with_blending": J_on,
+        "J_with_blending": J_on_applied,
+        "J_applied_with_blending": J_on_applied,
+        "J_raw_with_blending": J_on_raw,
+        "J_improvement_target": improve_target,
+        "no_mode_mismatch_warning": bool(no_mode_mismatch),
+        "blending_reduces_J_assertion": bool(assert_ok),
         "switch_count_without_blending": len(sim_off["switch_steps"]),
         "switch_count_with_blending": len(sim_on["switch_steps"]),
     }
@@ -95,7 +151,7 @@ def run_gate3(cfg_path: str) -> Path:
         fig.savefig(out_dir / "jump_histogram.png", dpi=150)
         plt.close(fig)
 
-    u = np.asarray(sim_off["u"])
+    u = np.asarray(sim_off["u_applied"])
     t = np.asarray(sim_off["t"])[:-1]
     udot = np.gradient(u, axis=0) / float(cfg.system.dt)
     fig, axes = plt.subplots(2, 1, figsize=(8, 6), sharex=True)

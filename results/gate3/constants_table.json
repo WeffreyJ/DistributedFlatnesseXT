@@ -1,10 +1,15 @@
 {
-  "J_with_blending": 0.14751809539329347,
-  "J_without_blending": 0.037477461095141024,
+  "J_applied_with_blending": 0.014869225531915243,
+  "J_improvement_target": 0.01057185217075856,
+  "J_raw_with_blending": 0.20250522171275595,
+  "J_with_blending": 0.014869225531915243,
+  "J_without_blending": 0.0132148152134482,
   "L_Psi": 3.2,
+  "blending_reduces_J_assertion": false,
   "c_overline": 2.2,
   "d_underline": 1.0,
   "gate": "Gate 3",
-  "switch_count_with_blending": 9,
-  "switch_count_without_blending": 8
+  "no_mode_mismatch_warning": false,
+  "switch_count_with_blending": 7,
+  "switch_count_without_blending": 7
 }

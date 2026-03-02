@@ -14,6 +14,8 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 def _parse_scalar(text: str) -> Any:
+    if (text.startswith('"') and text.endswith('"')) or (text.startswith("'") and text.endswith("'")):
+        return text[1:-1]
     low = text.lower()
     if low == "true":
         return True

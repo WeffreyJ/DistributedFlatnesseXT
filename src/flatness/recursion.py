@@ -29,10 +29,22 @@ def compute_phi(zeta: dict[str, np.ndarray], x: np.ndarray, pi: list[int], param
         phi[(i, 1)] = h_inverse_layer(i, 1, zeta, x, params)
         phi[(i, 2)] = h_inverse_layer(i, 2, zeta, x, params)
 
-    # Triangular evaluation order for extensibility (top to bottom in pi)
-    d = delta_accel(x, params)
-    for i in pi:
-        phi[(i, 3)] = float(zeta["v"][i] - d[i])
+    # Triangular evaluation order for extensibility (top to bottom in pi).
+    coupling_mode = getattr(params, "coupling_mode", "upstream_u")
+    if coupling_mode == "upstream_u":
+        u_partial = np.zeros(n, dtype=float)
+        k_u = float(getattr(params, "k_u", 0.3))
+        for idx_in_order, agent in enumerate(pi):
+            upstream = pi[:idx_in_order]
+            delta_i = k_u * float(np.sum(u_partial[upstream])) if upstream else 0.0
+            u_partial[agent] = float(zeta["v"][agent] - delta_i)
+            phi[(agent, 3)] = float(u_partial[agent])
+    elif coupling_mode == "downwash":
+        d = delta_accel(x, params)
+        for i in pi:
+            phi[(i, 3)] = float(zeta["v"][i] - d[i])
+    else:
+        raise ValueError(f"Unsupported coupling_mode={coupling_mode!r}")
 
     return phi
 

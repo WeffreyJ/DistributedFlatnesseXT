@@ -3,9 +3,9 @@
   "dag_rate_mean": 1.0,
   "gate": "Gate 1",
   "mc_runs": 12,
-  "min_inter_switch_time": 0.36,
+  "min_inter_switch_time": 0.42000000000000004,
   "num_cycle_snapshots": 0,
   "num_topo_failures": 0,
-  "switches_per_second_mean": 0.4916666666666667,
+  "switches_per_second_mean": 0.4416666666666667,
   "topo_pass_rate_mean": 1.0
 }

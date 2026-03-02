@@ -67,12 +67,17 @@ def run_gate4(cfg_path: str) -> Path:
 
                     err_env = _compute_error_envelope(sim, sys_cfg)
                     sw_rate = float(len(sim["switch_times"]) / max(float(sim["horizon"]), 1e-9))
-                    u = np.asarray(sim["u"])
-                    jumps = []
+                    u_applied = np.asarray(sim["u_applied"])
+                    u_old = np.asarray(sim["u_old"])
+                    u_new = np.asarray(sim["u_new"])
+                    applied_jumps = []
+                    raw_jumps = []
                     for k in sim["switch_steps"]:
-                        if 1 <= k < len(u):
-                            jumps.append(float(np.linalg.norm(u[k] - u[k - 1])))
-                    J = float(max(jumps)) if jumps else 0.0
+                        if 1 <= k < len(u_applied):
+                            applied_jumps.append(float(np.linalg.norm(u_applied[k] - u_applied[k - 1])))
+                            raw_jumps.append(float(np.linalg.norm(u_new[k] - u_old[k])))
+                    J = float(max(applied_jumps)) if applied_jumps else 0.0
+                    J_raw = float(max(raw_jumps)) if raw_jumps else 0.0
 
                     rows.append(
                         {
@@ -83,6 +88,7 @@ def run_gate4(cfg_path: str) -> Path:
                             "error_envelope": err_env,
                             "switch_rate": sw_rate,
                             "J": J,
+                            "J_raw": J_raw,
                         }
                     )
 
@@ -90,7 +96,7 @@ def run_gate4(cfg_path: str) -> Path:
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["tau_d", "blending", "noise_delta", "run", "error_envelope", "switch_rate", "J"],
+            fieldnames=["tau_d", "blending", "noise_delta", "run", "error_envelope", "switch_rate", "J", "J_raw"],
         )
         writer.writeheader()
         writer.writerows(rows)
