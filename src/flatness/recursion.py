@@ -44,9 +44,27 @@ def compute_phi(zeta: dict[str, np.ndarray], x: np.ndarray, pi: list[int], param
         for i in pi:
             phi[(i, 3)] = float(zeta["v"][i] - d[i])
     elif coupling_mode == "wake_surrogate":
-        d = delta_accel(x, params)
-        for agent in pi:
-            phi[(agent, 3)] = float(zeta["v"][agent] - d[agent])
+        wake_mode = getattr(params, "wake_surrogate_mode", "pi_upstream")
+        if wake_mode == "physical_all_edges":
+            d = delta_accel(x, params)
+            for agent in pi:
+                phi[(agent, 3)] = float(zeta["v"][agent] - d[agent])
+        elif wake_mode == "pi_upstream":
+            k_wake = float(getattr(params, "k_wake", 0.35))
+            L = float(getattr(params, "wake_decay_L", 2.0))
+            wake_Rx = float(getattr(params, "wake_Rx", 6.0))
+            gamma_edge = float(getattr(params, "gamma_edge", getattr(params, "gamma", 0.0)))
+            s = x[:n]
+            for idx_in_order, agent in enumerate(pi):
+                upstream = pi[:idx_in_order]
+                delta_i = 0.0
+                for j in upstream:
+                    dx = float(s[j] - s[agent])
+                    if dx > gamma_edge and dx < wake_Rx:
+                        delta_i += -k_wake * float(np.exp(-dx / max(L, 1.0e-9)))
+                phi[(agent, 3)] = float(zeta["v"][agent] - delta_i)
+        else:
+            raise ValueError(f"Unsupported wake_surrogate_mode={wake_mode!r}")
     else:
         raise ValueError(f"Unsupported coupling_mode={coupling_mode!r}")
 

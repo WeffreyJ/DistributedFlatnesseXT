@@ -92,6 +92,7 @@ def run_selftest(config_path: str) -> int:
         "switch_rate",
         "J",
         "J_raw",
+        "jump_ratio",
         "num_switches",
         "avg_time_between_switches",
     }
@@ -131,15 +132,20 @@ def run_selftest(config_path: str) -> int:
         mean_true_j = _mean(rows_true, "J")
         mean_false_spike_inst = _mean(rows_false, "error_spike_instant")
         mean_true_spike_inst = _mean(rows_true, "error_spike_instant")
+        mean_false_jump_ratio = _mean(rows_false, "jump_ratio")
+        mean_true_jump_ratio = _mean(rows_true, "jump_ratio")
         j_ok = mean_true_j < mean_false_j
         # Soft requirement: instantaneous spike should not worsen materially (>0.5%).
         spike_ok = mean_true_spike_inst <= mean_false_spike_inst * 1.005 + 1e-12
         spike_strict = mean_true_spike_inst < mean_false_spike_inst
-        ok_f = j_ok and spike_ok
+        ratio_ok = mean_true_jump_ratio < mean_false_jump_ratio
+        ok_f = j_ok and spike_ok and ratio_ok
         detail = (
             f"J_true={mean_true_j:.6g}, J_false={mean_false_j:.6g}, J_reduced={j_ok}; "
             f"spike_inst_true={mean_true_spike_inst:.6g}, spike_inst_false={mean_false_spike_inst:.6g}, "
-            f"spike_reduced_strict={spike_strict}, spike_within_tol={spike_ok}"
+            f"spike_reduced_strict={spike_strict}, spike_within_tol={spike_ok}; "
+            f"jump_ratio_true={mean_true_jump_ratio:.6g}, jump_ratio_false={mean_false_jump_ratio:.6g}, "
+            f"jump_ratio_reduced={ratio_ok}"
         )
     else:
         detail = "missing tau_d=0/noise=0 rows for one blending mode"
@@ -189,6 +195,7 @@ def run_selftest(config_path: str) -> int:
         plot_dir / "error_spike_instant_by_noise.png",
         plot_dir / "switch_rate_by_tau.png",
         plot_dir / "J_by_tau_and_blending.png",
+        plot_dir / "jump_ratio_by_tau_and_blending.png",
         plot_dir / "switch_rate_by_noise.png",
     ]
     missing_plots = [p.name for p in expected_plots if not p.exists()]

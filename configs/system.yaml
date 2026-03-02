@@ -12,6 +12,7 @@ system:
   wake_Rx: 6.0
   wake_decay_L: 2.0
   k_wake: 0.35
+  wake_surrogate_mode: "pi_upstream"
 ordering:
   epsilon: 0.06
   lockout_sec: 0.35

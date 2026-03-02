@@ -29,7 +29,7 @@ class SimOptions:
 
 def simulate_closed_loop(
     cfg,
-    x0: np.ndarray,
+    x0: np.ndarray | None,
     horizon: float | None = None,
     options: SimOptions | None = None,
 ) -> dict[str, np.ndarray | list]:
@@ -46,7 +46,17 @@ def simulate_closed_loop(
     steps = int(np.floor(T / dt))
 
     rng = np.random.default_rng(options.seed)
-    x = x0.astype(float).copy()
+    if x0 is None:
+        # Deterministic fallback for quick diagnostics.
+        x = np.concatenate(
+            [
+                np.array(ref_cfg.base, dtype=float),
+                np.zeros(sys.N, dtype=float),
+            ],
+            axis=0,
+        )
+    else:
+        x = x0.astype(float).copy()
 
     t_hist = np.linspace(0.0, steps * dt, steps + 1)
     x_hist = np.zeros((steps + 1, x.size), dtype=float)
@@ -62,6 +72,7 @@ def simulate_closed_loop(
     dag_hist = np.zeros(steps, dtype=bool)
     topo_hist = np.zeros(steps, dtype=bool)
     edges_hist: list[list[tuple[int, int]]] = []
+    num_edges_hist = np.zeros(steps, dtype=int)
     switch_times: list[float] = []
     switch_steps: list[int] = []
     topo_failures: list[dict] = []
@@ -239,6 +250,7 @@ def simulate_closed_loop(
         dag_hist[k] = dag
         topo_hist[k] = topo_ok
         edges_hist.append(list(g.edges()))
+        num_edges_hist[k] = int(g.number_of_edges())
 
     return {
         "t": t_hist,
@@ -255,6 +267,7 @@ def simulate_closed_loop(
         "dag": dag_hist,
         "topo": topo_hist,
         "edges": edges_hist,
+        "num_edges": num_edges_hist,
         "switch_times": switch_times,
         "switch_steps": switch_steps,
         "topo_failures": topo_failures,

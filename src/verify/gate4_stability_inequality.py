@@ -189,6 +189,11 @@ def run_gate4(cfg_path: str) -> Path:
                             raw_jumps.append(float(np.linalg.norm(u_new[k] - u_old[k])))
                     J = float(max(applied_jumps)) if applied_jumps else 0.0
                     J_raw = float(max(raw_jumps)) if raw_jumps else 0.0
+                    eps_ratio = 1.0e-9
+                    if J_raw < 1.0e-8:
+                        jump_ratio = 0.0
+                    else:
+                        jump_ratio = float(J / (J_raw + eps_ratio))
 
                     rows.append(
                         {
@@ -205,6 +210,7 @@ def run_gate4(cfg_path: str) -> Path:
                             "switch_rate": sw_rate,
                             "J": J,
                             "J_raw": J_raw,
+                            "jump_ratio": jump_ratio,
                         }
                     )
 
@@ -226,6 +232,7 @@ def run_gate4(cfg_path: str) -> Path:
                 "switch_rate",
                 "J",
                 "J_raw",
+                "jump_ratio",
             ],
         )
         writer.writeheader()
@@ -277,6 +284,15 @@ def run_gate4(cfg_path: str) -> Path:
         field="switch_rate",
         title="Gate 4: Switching rate vs dwell",
         ylabel="mean switch rate [1/s]",
+    )
+
+    _plot_by_tau(
+        out_path=out_dir / "jump_ratio_by_tau_and_blending.png",
+        rows=rows_tau,
+        tau_values=[float(v) for v in g4.tau_d_values],
+        field="jump_ratio",
+        title="Gate 4: jump_ratio vs dwell time",
+        ylabel="mean(J / (J_raw + eps))",
     )
 
     # Keep existing noise trend plot across all tau values.
