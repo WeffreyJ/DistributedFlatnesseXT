@@ -1,0 +1,7 @@
+base_system_config: configs/system.yaml
+gate4:
+  mc_runs: 10
+  tau_d_values: [0.0, 0.1, 0.25, 0.45, 0.7]
+  blending: [false, true]
+  noise_delta_values: [0.0, 0.01, 0.02, 0.04, 0.08]
+  spike_window_sec: 0.2

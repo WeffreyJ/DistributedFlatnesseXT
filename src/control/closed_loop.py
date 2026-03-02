@@ -25,6 +25,9 @@ class SimOptions:
     noise_delta: float = 0.0
     seed: int = 0
     lockout_sec_override: float | None = None
+    force_fixed_pi: bool = False
+    fixed_pi: list[int] | None = None
+    disable_switching: bool = False
 
 
 def simulate_closed_loop(
@@ -99,6 +102,15 @@ def simulate_closed_loop(
         s_hat = s_true + rng.uniform(-options.noise_delta, options.noise_delta, size=sys.N)
 
         pi_candidate = compute_pi(s_hat)
+        if options.force_fixed_pi:
+            if options.fixed_pi is not None:
+                pi_fixed = [int(v) for v in options.fixed_pi]
+            elif mode_state.current_pi is None:
+                pi_fixed = pi_candidate.copy()
+            else:
+                pi_fixed = mode_state.current_pi.copy()
+            pi_candidate = pi_fixed.copy()
+
         if mode_state.current_pi is None:
             mode_state.current_pi = pi_candidate.copy()
             mode_state.last_switch_t = t
@@ -174,6 +186,8 @@ def simulate_closed_loop(
             and (not lockout_sample_active)
             and rho >= eps
         )
+        if options.disable_switching:
+            can_switch = False
         switched_immediate = False
         if can_switch:
             if options.blending_on and transition_blend_enable and transition_M > 0:

@@ -28,3 +28,9 @@ dist/
 
 # Private draft PDF (local only)
 report/DistributedFlatnessPaperTechnicalDraft.pdf
+
+# Runtime outputs (use paper_artifacts/success_eval for committed bundles)
+results/
+
+# Local finder artifacts
+src/.DS_Store

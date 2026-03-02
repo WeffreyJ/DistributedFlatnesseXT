@@ -1,0 +1,48 @@
+seed: 7
+system:
+  N: 3
+  dt: 0.02
+  horizon: 20.0
+  a_downwash: 0.55
+  gamma: 0.05
+  gamma_edge: 0.08
+  R_coup: 3.0
+  coupling_mode: "wake_surrogate"
+  k_u: 0.3
+  wake_Rx: 6.0
+  wake_decay_L: 2.0
+  k_wake: 0.35
+  wake_surrogate_mode: "pi_upstream"
+ordering:
+  epsilon: 0.06
+  lockout_sec: 0.35
+  lockout_samples: 18  # TODO: enforce sample lockout jointly with time lockout
+  eta: 0.10
+  blend_sec: 0.2
+  blend_enabled: true
+  transition_blend_sec: 0.02
+  transition_blend_enable: true
+controller:
+  kp: 3.5
+  kd: 2.2
+reference:
+  base: [0.0, 0.22, -0.18]
+  amp: [0.6, 0.55, 0.58]
+  freq: [0.7, 0.65, 0.72]
+  phase: [0.0, 1.2, 2.1]
+reachset:
+  mc_runs: 25
+  horizon: 12.0
+  shrink_margin: 0.06
+x0:
+  x1: [-0.4, 0.4]
+  x2: [-0.25, 0.25]
+gate1:
+  mc_runs: 12
+gate3:
+  run_horizon: 18.0
+gate4:
+  mc_runs: 6
+  tau_d_values: [0.0, 0.15, 0.35, 0.6]
+  blending: [false, true]
+  noise_delta_values: [0.0, 0.01, 0.03, 0.06]
