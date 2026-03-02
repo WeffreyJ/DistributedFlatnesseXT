@@ -22,5 +22,6 @@ def blend(u_old: np.ndarray, u_new: np.ndarray, rho: float, eps: float, eta: flo
 
 def blend_progress(u_old: np.ndarray, u_new: np.ndarray, progress: float) -> np.ndarray:
     """Blend controls with smooth time-progress weight in [0, 1]."""
-    w = _smoothstep(progress)
+    # Use linear progress for transition blending to reduce lag-induced spikes.
+    w = float(np.clip(progress, 0.0, 1.0))
     return (1.0 - w) * u_old + w * u_new

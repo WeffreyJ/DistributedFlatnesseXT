@@ -1,4 +1,11 @@
-"""Gate 4: Monte Carlo trend tests over dwell, blending, and noise."""
+"""Gate 4: Monte Carlo trend tests over dwell, blending, and noise.
+
+Theorem-style switched bounds are driven by baseline tracking and switch-induced
+jump effects. This gate separates those via:
+- error_outside_switch: mean tracking error away from switch windows
+- error_spike_windowed: peak tracking error inside switch windows
+- error_spike_instant: instantaneous spike at/just after switch steps
+"""
 
 from __future__ import annotations
 
@@ -11,8 +18,6 @@ import numpy as np
 
 from src.config import load_config
 from src.control.closed_loop import SimOptions, simulate_closed_loop
-from src.experiments.scenario_crossing import sinusoidal_crossing_reference
-from src.model.dynamics import split_state
 from src.verify.utils import make_results_dir
 
 
@@ -23,16 +28,99 @@ def _sample_x0(cfg, rng: np.random.Generator) -> np.ndarray:
     return np.concatenate([x1, x2], axis=0)
 
 
-def _compute_error_envelope(sim: dict, cfg) -> float:
+def _error_series(sim: dict, cfg) -> np.ndarray:
+    """Return per-step tracking error using the existing Gate 4 semantics."""
     x_hist = np.asarray(sim["x"])
-    t = np.asarray(sim["t"])
-    errs = []
-    for k in range(len(t)):
-        y_ref, ydot_ref, _ = sinusoidal_crossing_reference(float(t[k]), cfg.reference)
-        x1, x2 = split_state(x_hist[k], cfg.system.N)
-        e = np.concatenate([x1 - y_ref, x2 - ydot_ref])
-        errs.append(np.linalg.norm(e))
-    return float(np.max(errs))
+    y_ref = np.asarray(sim["y_ref"])
+    ydot_ref = np.asarray(sim["ydot_ref"])
+
+    n = int(cfg.system.N)
+    y = x_hist[:-1, :n]
+    ydot = x_hist[:-1, n : 2 * n]
+    if y_ref.shape != y.shape:
+        raise ValueError(f"y_ref shape mismatch: y_ref={y_ref.shape}, y={y.shape}")
+    if ydot_ref.shape != ydot.shape:
+        raise ValueError(f"ydot_ref shape mismatch: ydot_ref={ydot_ref.shape}, ydot={ydot.shape}")
+
+    e = np.linalg.norm(np.concatenate([y - y_ref, ydot - ydot_ref], axis=1), axis=1)
+    return e
+
+
+def _compute_error_envelope(sim: dict, cfg) -> float:
+    e = _error_series(sim, cfg)
+    return float(np.max(e)) if e.size > 0 else 0.0
+
+
+def _split_switch_windows(e: np.ndarray, switch_steps: list[int], W: int) -> tuple[float, float]:
+    """Return (error_outside_switch, error_spike_windowed)."""
+    T = len(e)
+    if T == 0:
+        return 0.0, 0.0
+
+    if not switch_steps:
+        return float(np.mean(e)), float(np.max(e))
+
+    mask = np.zeros(T, dtype=bool)
+    for ks in switch_steps:
+        k0 = max(0, int(ks) - W)
+        k1 = min(T, int(ks) + W + 1)
+        mask[k0:k1] = True
+
+    spike_vals = e[mask]
+    outside_vals = e[~mask]
+
+    error_spike = float(np.max(spike_vals)) if spike_vals.size > 0 else float(np.max(e))
+    error_outside = float(np.mean(outside_vals)) if outside_vals.size > 0 else float(np.mean(e))
+    return error_outside, error_spike
+
+
+def _error_spike_instant(e: np.ndarray, switch_steps: list[int]) -> float:
+    """Return instantaneous spike metric around switching: max(e[k_s], e[k_s+1])."""
+    T = len(e)
+    if T == 0:
+        return 0.0
+    if not switch_steps:
+        return float(np.max(e))
+    vals: list[float] = []
+    for ks in switch_steps:
+        if 0 <= ks < T:
+            vals.append(float(e[ks]))
+        if 0 <= ks + 1 < T:
+            vals.append(float(e[ks + 1]))
+    return float(max(vals)) if vals else float(np.max(e))
+
+
+def _plot_by_tau(
+    out_path: Path,
+    rows: list[dict[str, float | int | bool]],
+    tau_values: list[float],
+    field: str,
+    title: str,
+    ylabel: str,
+) -> None:
+    fig, ax = plt.subplots(figsize=(7, 4))
+    for blending in [False, True]:
+        xs = []
+        ys = []
+        for tau_d in tau_values:
+            vals = [
+                float(r[field])
+                for r in rows
+                if bool(r["blending"]) == blending and float(r["tau_d"]) == float(tau_d)
+            ]
+            if vals:
+                xs.append(float(tau_d))
+                ys.append(float(np.mean(vals)))
+        if xs:
+            ax.plot(xs, ys, marker="o", label=f"blending={blending}")
+    ax.set_xlabel("tau_d [s]")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
 
 
 def run_gate4(cfg_path: str) -> Path:
@@ -45,15 +133,20 @@ def run_gate4(cfg_path: str) -> Path:
         g4 = sys_cfg.gate4
 
     out_dir = make_results_dir("gate4")
-    rng = np.random.default_rng(int(sys_cfg.seed) + 404)
+    dt = float(sys_cfg.system.dt)
+    spike_window_sec = float(getattr(g4, "spike_window_sec", 0.2))
+    W = max(1, int(spike_window_sec / max(dt, 1.0e-9)))
 
     rows: list[dict[str, float | int | bool]] = []
 
-    for tau_d in g4.tau_d_values:
-        for blending in g4.blending:
-            for noise_delta in g4.noise_delta_values:
-                for run in range(int(g4.mc_runs)):
-                    x0 = _sample_x0(sys_cfg, rng)
+    for tau_idx, tau_d in enumerate(g4.tau_d_values):
+        for noise_idx, noise_delta in enumerate(g4.noise_delta_values):
+            for run in range(int(g4.mc_runs)):
+                # Pair trajectories across blending modes by sharing x0 for same (tau, noise, run).
+                x0_seed = int(sys_cfg.seed) + 404 + 100000 * tau_idx + 1000 * noise_idx + run
+                rng_x0 = np.random.default_rng(x0_seed)
+                x0 = _sample_x0(sys_cfg, rng_x0)
+                for blending in g4.blending:
                     sim = simulate_closed_loop(
                         sys_cfg,
                         x0=x0,
@@ -65,8 +158,26 @@ def run_gate4(cfg_path: str) -> Path:
                         ),
                     )
 
+                    e = _error_series(sim, sys_cfg)
                     err_env = _compute_error_envelope(sim, sys_cfg)
-                    sw_rate = float(len(sim["switch_times"]) / max(float(sim["horizon"]), 1e-9))
+                    err_outside, err_spike = _split_switch_windows(
+                        e=e,
+                        switch_steps=[int(v) for v in sim["switch_steps"]],
+                        W=W,
+                    )
+                    err_spike_inst = _error_spike_instant(
+                        e=e,
+                        switch_steps=[int(v) for v in sim["switch_steps"]],
+                    )
+                    assert err_spike >= err_outside - 1.0e-12
+
+                    num_switches = int(len(sim["switch_steps"]))
+                    sw_rate = float(num_switches / max(float(sim["horizon"]), 1e-9))
+                    if num_switches >= 2:
+                        avg_dt_switch = float(np.mean(np.diff(np.asarray(sim["switch_times"], dtype=float))))
+                    else:
+                        avg_dt_switch = float(sim["horizon"])
+
                     u_applied = np.asarray(sim["u_applied"])
                     u_old = np.asarray(sim["u_old"])
                     u_new = np.asarray(sim["u_new"])
@@ -86,6 +197,11 @@ def run_gate4(cfg_path: str) -> Path:
                             "noise_delta": float(noise_delta),
                             "run": int(run),
                             "error_envelope": err_env,
+                            "error_outside_switch": err_outside,
+                            "error_spike_windowed": err_spike,
+                            "error_spike_instant": err_spike_inst,
+                            "num_switches": num_switches,
+                            "avg_time_between_switches": avg_dt_switch,
                             "switch_rate": sw_rate,
                             "J": J,
                             "J_raw": J_raw,
@@ -96,40 +212,84 @@ def run_gate4(cfg_path: str) -> Path:
     with csv_path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["tau_d", "blending", "noise_delta", "run", "error_envelope", "switch_rate", "J", "J_raw"],
+            fieldnames=[
+                "tau_d",
+                "blending",
+                "noise_delta",
+                "run",
+                "error_envelope",
+                "error_outside_switch",
+                "error_spike_windowed",
+                "error_spike_instant",
+                "num_switches",
+                "avg_time_between_switches",
+                "switch_rate",
+                "J",
+                "J_raw",
+            ],
         )
         writer.writeheader()
         writer.writerows(rows)
 
-    # Plot 1: error envelope by tau_d (aggregated over noise)
-    fig, ax = plt.subplots(figsize=(7, 4))
-    arr = rows
-    for blending in [False, True]:
-        xs = []
-        ys = []
-        for tau_d in g4.tau_d_values:
-            vals = [r["error_envelope"] for r in arr if r["blending"] == blending and r["tau_d"] == float(tau_d)]
-            if vals:
-                xs.append(float(tau_d))
-                ys.append(float(np.mean(vals)))
-        if xs:
-            ax.plot(xs, ys, marker="o", label=f"blending={blending}")
-    ax.set_xlabel("tau_d [s]")
-    ax.set_ylabel("mean error envelope")
-    ax.set_title("Gate 4: Error Envelope vs Dwell")
-    ax.grid(True, alpha=0.3)
-    ax.legend(loc="best", fontsize=8)
-    fig.tight_layout()
-    fig.savefig(out_dir / "error_envelope_by_tau.png", dpi=150)
-    plt.close(fig)
+    # For dwell-time plots, isolate noise_delta=0 to highlight tau_d trend cleanly.
+    rows_tau = [r for r in rows if float(r["noise_delta"]) == 0.0]
 
-    # Plot 2: switch rate by noise
+    _plot_by_tau(
+        out_path=out_dir / "error_envelope_by_tau.png",
+        rows=rows_tau,
+        tau_values=[float(v) for v in g4.tau_d_values],
+        field="error_envelope",
+        title="Gate 4: Error Envelope vs Dwell",
+        ylabel="mean error envelope",
+    )
+
+    _plot_by_tau(
+        out_path=out_dir / "error_spike_by_tau.png",
+        rows=rows_tau,
+        tau_values=[float(v) for v in g4.tau_d_values],
+        field="error_spike_windowed",
+        title="Gate 4: Switch-window spike vs dwell",
+        ylabel="mean spike error",
+    )
+
+    _plot_by_tau(
+        out_path=out_dir / "error_spike_instant_by_tau.png",
+        rows=rows_tau,
+        tau_values=[float(v) for v in g4.tau_d_values],
+        field="error_spike_instant",
+        title="Gate 4: Instant spike vs dwell",
+        ylabel="mean instant spike error",
+    )
+
+    _plot_by_tau(
+        out_path=out_dir / "J_by_tau_and_blending.png",
+        rows=rows_tau,
+        tau_values=[float(v) for v in g4.tau_d_values],
+        field="J",
+        title="Gate 4: J vs Dwell Time",
+        ylabel="mean J",
+    )
+
+    _plot_by_tau(
+        out_path=out_dir / "switch_rate_by_tau.png",
+        rows=rows_tau,
+        tau_values=[float(v) for v in g4.tau_d_values],
+        field="switch_rate",
+        title="Gate 4: Switching rate vs dwell",
+        ylabel="mean switch rate [1/s]",
+    )
+
+    # Keep existing noise trend plot across all tau values.
     fig, ax = plt.subplots(figsize=(7, 4))
     for blending in [False, True]:
         xs = []
         ys = []
         for nd in g4.noise_delta_values:
-            vals = [r["switch_rate"] for r in arr if r["blending"] == blending and r["noise_delta"] == float(nd)]
+            vals = [
+                float(r["switch_rate"])
+                for r in rows
+                if bool(r["blending"]) == blending and float(r["noise_delta"]) == float(nd)
+            ]
             if vals:
                 xs.append(float(nd))
                 ys.append(float(np.mean(vals)))
@@ -144,25 +304,30 @@ def run_gate4(cfg_path: str) -> Path:
     fig.savefig(out_dir / "switch_rate_by_noise.png", dpi=150)
     plt.close(fig)
 
-    # Plot 3: J by tau and blending
+    # Optional additional view: instant spike versus noise at tau_d = 0.
     fig, ax = plt.subplots(figsize=(7, 4))
+    rows_noise = [r for r in rows if float(r["tau_d"]) == 0.0]
     for blending in [False, True]:
         xs = []
         ys = []
-        for tau_d in g4.tau_d_values:
-            vals = [r["J"] for r in arr if r["blending"] == blending and r["tau_d"] == float(tau_d)]
+        for nd in g4.noise_delta_values:
+            vals = [
+                float(r["error_spike_instant"])
+                for r in rows_noise
+                if bool(r["blending"]) == blending and float(r["noise_delta"]) == float(nd)
+            ]
             if vals:
-                xs.append(float(tau_d))
+                xs.append(float(nd))
                 ys.append(float(np.mean(vals)))
         if xs:
-            ax.plot(xs, ys, marker="^", label=f"blending={blending}")
-    ax.set_xlabel("tau_d [s]")
-    ax.set_ylabel("mean J")
-    ax.set_title("Gate 4: J vs Dwell Time")
+            ax.plot(xs, ys, marker="d", label=f"blending={blending}")
+    ax.set_xlabel("noise delta")
+    ax.set_ylabel("mean instant spike error")
+    ax.set_title("Gate 4: Instant spike vs noise (tau_d = 0)")
     ax.grid(True, alpha=0.3)
     ax.legend(loc="best", fontsize=8)
     fig.tight_layout()
-    fig.savefig(out_dir / "J_by_tau_and_blending.png", dpi=150)
+    fig.savefig(out_dir / "error_spike_instant_by_noise.png", dpi=150)
     plt.close(fig)
 
     return csv_path

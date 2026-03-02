@@ -53,6 +53,9 @@ def simulate_closed_loop(
     u_applied_hist = np.zeros((steps, sys.N), dtype=float)
     u_old_hist = np.zeros((steps, sys.N), dtype=float)
     u_new_hist = np.zeros((steps, sys.N), dtype=float)
+    y_ref_hist = np.zeros((steps, sys.N), dtype=float)
+    ydot_ref_hist = np.zeros((steps, sys.N), dtype=float)
+    yddot_ref_hist = np.zeros((steps, sys.N), dtype=float)
     pi_hist: list[list[int]] = []
     pi_candidate_hist: list[list[int]] = []
     rho_hist = np.zeros(steps, dtype=float)
@@ -131,6 +134,9 @@ def simulate_closed_loop(
             )
 
         y_ref, ydot_ref, yddot_ref = sinusoidal_crossing_reference(t, ref_cfg)
+        y_ref_hist[k] = y_ref
+        ydot_ref_hist[k] = ydot_ref
+        yddot_ref_hist[k] = yddot_ref
         v = virtual_input(
             y=x1,
             ydot=x2,
@@ -240,6 +246,9 @@ def simulate_closed_loop(
         "u_applied": u_applied_hist,
         "u_old": u_old_hist,
         "u_new": u_new_hist,
+        "y_ref": y_ref_hist,
+        "ydot_ref": ydot_ref_hist,
+        "yddot_ref": yddot_ref_hist,
         "pi": pi_hist,
         "pi_candidate": pi_candidate_hist,
         "rho": rho_hist,
