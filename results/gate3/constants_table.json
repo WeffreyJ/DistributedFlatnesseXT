@@ -1,15 +1,15 @@
 {
-  "J_applied_with_blending": 0.012839190954471573,
-  "J_improvement_target": 0.19476786609582633,
-  "J_raw_with_blending": 0.23553161977813492,
-  "J_with_blending": 0.012839190954471573,
-  "J_without_blending": 0.2434598326197829,
+  "J_applied_with_blending": 0.014425873177146147,
+  "J_improvement_target": 0.011540698541716918,
+  "J_raw_with_blending": 0.0,
+  "J_with_blending": 0.014425873177146147,
+  "J_without_blending": 0.014425873177146147,
   "L_Psi": 3.2,
-  "blending_reduces_J_assertion": true,
+  "blending_reduces_J_assertion": false,
   "c_overline": 2.2,
   "d_underline": 1.0,
   "gate": "Gate 3",
-  "no_mode_mismatch_warning": false,
+  "no_mode_mismatch_warning": true,
   "switch_count_with_blending": 7,
   "switch_count_without_blending": 7
 }

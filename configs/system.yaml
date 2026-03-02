@@ -7,8 +7,11 @@ system:
   gamma: 0.05
   gamma_edge: 0.08
   R_coup: 3.0
-  coupling_mode: "upstream_u"
+  coupling_mode: "wake_surrogate"
   k_u: 0.3
+  wake_Rx: 6.0
+  wake_decay_L: 2.0
+  k_wake: 0.35
 ordering:
   epsilon: 0.06
   lockout_sec: 0.35

@@ -43,6 +43,10 @@ def compute_phi(zeta: dict[str, np.ndarray], x: np.ndarray, pi: list[int], param
         d = delta_accel(x, params)
         for i in pi:
             phi[(i, 3)] = float(zeta["v"][i] - d[i])
+    elif coupling_mode == "wake_surrogate":
+        d = delta_accel(x, params)
+        for agent in pi:
+            phi[(agent, 3)] = float(zeta["v"][agent] - d[agent])
     else:
         raise ValueError(f"Unsupported coupling_mode={coupling_mode!r}")
 
