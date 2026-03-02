@@ -16,11 +16,10 @@ class OrderingState:
     current_pi: list[int] | None = None
     last_switch_t: float = -1.0e9
     last_switch_k: int = -10**9
-    blend_active: bool = False
-    blend_steps_remaining: int = 0
-    blend_total_steps: int = 0
-    blend_old_pi: list[int] | None = None
-    blend_new_pi: list[int] | None = None
+    transition_active: bool = False
+    transition_target_pi: list[int] | None = None
+    transition_start_k: int = -1
+    transition_M: int = 0
 
 
 def s_metric(x: np.ndarray, N: int) -> np.ndarray:

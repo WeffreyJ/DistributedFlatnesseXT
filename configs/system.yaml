@@ -16,6 +16,8 @@ ordering:
   eta: 0.10
   blend_sec: 0.2
   blend_enabled: true
+  transition_blend_sec: 0.2
+  transition_blend_enable: true
 controller:
   kp: 3.5
   kd: 2.2

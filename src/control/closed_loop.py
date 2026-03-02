@@ -69,9 +69,13 @@ def simulate_closed_loop(
     eps = float(ord_cfg.epsilon)
     eta = float(ord_cfg.eta)
     lockout_samples = int(ord_cfg.lockout_samples)
-    blend_enabled_cfg = bool(getattr(ord_cfg, "blend_enabled", True))
-    blend_sec = float(getattr(ord_cfg, "blend_sec", 0.2))
-    blend_steps = max(1, int(np.ceil(blend_sec / max(dt, 1.0e-9))))
+    transition_blend_enable = bool(
+        getattr(ord_cfg, "transition_blend_enable", getattr(ord_cfg, "blend_enabled", True))
+    )
+    transition_blend_sec = float(
+        getattr(ord_cfg, "transition_blend_sec", getattr(ord_cfg, "blend_sec", 0.2))
+    )
+    transition_M = max(1, int(np.ceil(transition_blend_sec / max(dt, 1.0e-9))))
 
     for k in range(steps):
         t = k * dt
@@ -147,57 +151,62 @@ def simulate_closed_loop(
         lockout_time_active = (t - mode_state.last_switch_t) < lockout_sec
         lockout_sample_active = (k - mode_state.last_switch_k) < lockout_samples
         can_switch = (
-            (not mode_state.blend_active)
+            (not mode_state.transition_active)
             and pi_candidate != pi_mode
             and (not lockout_time_active)
             and (not lockout_sample_active)
             and rho >= eps
         )
+        switched_immediate = False
         if can_switch:
-            if options.blending_on and blend_enabled_cfg and blend_steps > 0:
-                mode_state.blend_active = True
-                mode_state.blend_steps_remaining = blend_steps
-                mode_state.blend_total_steps = blend_steps
-                mode_state.blend_old_pi = pi_mode.copy()
-                mode_state.blend_new_pi = pi_candidate.copy()
+            if options.blending_on and transition_blend_enable and transition_M > 0:
+                mode_state.transition_active = True
+                mode_state.transition_target_pi = pi_candidate.copy()
+                mode_state.transition_start_k = k
+                mode_state.transition_M = transition_M
+                # For blended runs, switch event is transition start (jump should be near-zero here).
+                switch_times.append(t)
+                switch_steps.append(k)
             else:
                 mode_state.current_pi = pi_candidate.copy()
                 mode_state.last_switch_t = t
                 mode_state.last_switch_k = k
                 switch_times.append(t)
                 switch_steps.append(k)
+                switched_immediate = True
 
-        if mode_state.blend_active:
-            old_pi = mode_state.blend_old_pi if mode_state.blend_old_pi is not None else pi_mode
-            new_pi = mode_state.blend_new_pi if mode_state.blend_new_pi is not None else pi_candidate
+        if mode_state.transition_active:
+            old_pi = mode_state.current_pi.copy()
+            new_pi = (
+                mode_state.transition_target_pi.copy()
+                if mode_state.transition_target_pi is not None
+                else pi_candidate.copy()
+            )
             phi_old = compute_phi(zeta=zeta, x=x, pi=old_pi, params=sys)
             u_old = psi(phi=phi_old, params=sys)
             phi_new = compute_phi(zeta=zeta, x=x, pi=new_pi, params=sys)
             u_new = psi(phi=phi_new, params=sys)
-            progress = 1.0 - (
-                float(mode_state.blend_steps_remaining) / float(max(mode_state.blend_total_steps, 1))
-            )
+            elapsed = max(0, k - mode_state.transition_start_k)
+            progress = float(np.clip(elapsed / float(max(mode_state.transition_M, 1)), 0.0, 1.0))
             u_applied = blend_progress(u_old=u_old, u_new=u_new, progress=progress)
-            mode_state.blend_steps_remaining -= 1
-            if mode_state.blend_steps_remaining <= 0:
-                mode_state.blend_active = False
+            if elapsed >= mode_state.transition_M:
+                mode_state.transition_active = False
                 mode_state.current_pi = new_pi.copy()
                 mode_state.last_switch_t = t
                 mode_state.last_switch_k = k
-                switch_times.append(t)
-                switch_steps.append(k)
-                mode_state.blend_old_pi = None
-                mode_state.blend_new_pi = None
-                mode_state.blend_total_steps = 0
-                mode_state.blend_steps_remaining = 0
+                mode_state.transition_target_pi = None
+                mode_state.transition_start_k = -1
+                mode_state.transition_M = 0
         else:
             phi_old = compute_phi(zeta=zeta, x=x, pi=pi_mode, params=sys)
             u_old = psi(phi=phi_old, params=sys)
             phi_new = compute_phi(zeta=zeta, x=x, pi=pi_candidate, params=sys)
             u_new = psi(phi=phi_new, params=sys)
-            if pi_candidate == pi_mode:
+            if switched_immediate:
+                u_applied = u_new
+            elif pi_candidate == pi_mode:
                 u_applied = u_old
-            elif options.blending_on and not blend_enabled_cfg:
+            elif options.blending_on and not transition_blend_enable:
                 # Optional rho-band blending fallback if transition blending is disabled.
                 u_applied = blend(
                     u_old=u_old,
@@ -207,7 +216,8 @@ def simulate_closed_loop(
                     eta=eta,
                 )
             else:
-                u_applied = u_new
+                # Keep persistent-mode control until immediate switch or transition starts.
+                u_applied = u_old
 
         # Euler integration with fixed step.
         xdot = f(x, u_applied, sys)
