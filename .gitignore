@@ -1,0 +1,30 @@
+# OS
+.DS_Store
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+.venv/
+venv/
+
+# Packaging / build artifacts
+build/
+dist/
+*.egg-info/
+
+# Local tooling caches
+.cache/
+.coverage
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Private draft PDF (local only)
+report/DistributedFlatnessPaperTechnicalDraft.pdf
