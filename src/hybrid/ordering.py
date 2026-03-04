@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from src.model.coupling import delta_accel
 from src.model.coupling import s_from_x
 
 
@@ -27,6 +28,35 @@ def s_metric(x: np.ndarray, N: int) -> np.ndarray:
     return s_from_x(x, N)
 
 
+def compute_ordering_metric(x: np.ndarray, sys, params=None) -> np.ndarray:
+    """Return ordering metric from one consistent state snapshot.
+
+    Notes:
+    - Deterministic for fixed x in the toy model.
+    - `params` is accepted for future models where metric tuning may be configurable.
+    """
+    n = int(sys.N)
+    base = s_metric(x, n)
+    if params is None:
+        return base
+
+    metric = str(getattr(params, "metric", "s_metric"))
+    if metric in {"s_metric", "x_position"}:
+        return base
+    if metric == "wake_influence":
+        gain = float(getattr(params, "wake_metric_gain", 1.0))
+        d = np.asarray(delta_accel(x, sys), dtype=float)
+        return base + gain * (-d)
+    if metric == "constant":
+        return np.zeros(n, dtype=float)
+    if metric == "random_fixed":
+        seed = int(getattr(params, "metric_seed", 0))
+        rng = np.random.default_rng(seed)
+        scores = rng.uniform(-1.0, 1.0, size=n)
+        return np.asarray(scores, dtype=float)
+    return base
+
+
 def compute_pi(s: np.ndarray) -> list[int]:
     """Sort indices by descending s with index tie-break."""
     return sorted(range(len(s)), key=lambda i: (-float(s[i]), int(i)))
@@ -38,6 +68,22 @@ def rho_margin(s: np.ndarray, pi: list[int]) -> float:
         return np.inf
     vals = [abs(float(s[pi[k]]) - float(s[pi[k + 1]])) for k in range(len(pi) - 1)]
     return float(min(vals)) if vals else np.inf
+
+
+def tie_gap_info(s: np.ndarray, pi: list[int]) -> tuple[float, tuple[int, int]]:
+    """Return minimum adjacent sorted gap and the corresponding agent-id pair."""
+    if len(pi) < 2:
+        return np.inf, (-1, -1)
+    best_gap = np.inf
+    best_pair = (-1, -1)
+    for k in range(len(pi) - 1):
+        i = int(pi[k])
+        j = int(pi[k + 1])
+        g = abs(float(s[i]) - float(s[j]))
+        if g < best_gap:
+            best_gap = g
+            best_pair = (i, j)
+    return float(best_gap), best_pair
 
 
 def rho_global(s: np.ndarray) -> float:

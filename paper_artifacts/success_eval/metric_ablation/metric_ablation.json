@@ -1,0 +1,72 @@
+{
+  "gate4_mc_runs": 3,
+  "mc_runs": 6,
+  "metrics": [
+    {
+      "Gate1_DAG_pass_rate": 1.0,
+      "Gate1_topo_pass_rate": 1.0,
+      "Gate4_jump_ratio_median": 1.0189354885176902,
+      "Gate4_success_rate": 0.49333333333333335,
+      "Gate4_switch_rate_mean": 0.5073333333333333,
+      "GateB_max_e_blend_p90": 0.8818684272202747,
+      "GateS_S_max": 0.0,
+      "GateS_S_p90": 0.0,
+      "errors": "",
+      "metric_name": "s_metric",
+      "status": "ok"
+    },
+    {
+      "Gate1_DAG_pass_rate": 1.0,
+      "Gate1_topo_pass_rate": 1.0,
+      "Gate4_jump_ratio_median": 1.0189354885176902,
+      "Gate4_success_rate": 0.49333333333333335,
+      "Gate4_switch_rate_mean": 0.5073333333333333,
+      "GateB_max_e_blend_p90": 0.8818684272202747,
+      "GateS_S_max": 0.0,
+      "GateS_S_p90": 0.0,
+      "errors": "",
+      "metric_name": "x_position",
+      "status": "ok"
+    },
+    {
+      "Gate1_DAG_pass_rate": 1.0,
+      "Gate1_topo_pass_rate": 1.0,
+      "Gate4_jump_ratio_median": NaN,
+      "Gate4_success_rate": 0.0,
+      "Gate4_switch_rate_mean": NaN,
+      "GateB_max_e_blend_p90": 0.19123444872725112,
+      "GateS_S_max": 0.31227488572405876,
+      "GateS_S_p90": 0.3060882299435413,
+      "errors": "gate4:AssertionError:",
+      "metric_name": "wake_influence",
+      "status": "error"
+    },
+    {
+      "Gate1_DAG_pass_rate": 1.0,
+      "Gate1_topo_pass_rate": 1.0,
+      "Gate4_jump_ratio_median": 0.0,
+      "Gate4_success_rate": 1.0,
+      "Gate4_switch_rate_mean": 0.0,
+      "GateB_max_e_blend_p90": 0.0,
+      "GateS_S_max": 0.0,
+      "GateS_S_p90": 0.0,
+      "errors": "",
+      "metric_name": "random_fixed",
+      "status": "ok"
+    },
+    {
+      "Gate1_DAG_pass_rate": 1.0,
+      "Gate1_topo_pass_rate": 1.0,
+      "Gate4_jump_ratio_median": NaN,
+      "Gate4_success_rate": 0.0,
+      "Gate4_switch_rate_mean": NaN,
+      "GateB_max_e_blend_p90": 0.0,
+      "GateS_S_max": 0.3362701022159434,
+      "GateS_S_p90": 0.3279916993610977,
+      "errors": "gate4:AssertionError:",
+      "metric_name": "constant",
+      "status": "error"
+    }
+  ],
+  "schema_version": "1.0"
+}

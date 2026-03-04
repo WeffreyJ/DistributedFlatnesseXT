@@ -7,9 +7,39 @@
   "L_Psi": 3.2,
   "blending_reduces_J_assertion": true,
   "c_overline": 2.2,
+  "certificate_mode": "template",
+  "confidence": {
+    "delta": 0.001,
+    "num_samples": 0,
+    "type": "none"
+  },
+  "constants": {
+    "Kd": 18,
+    "P_eigs": [
+      0.27302693617196855,
+      1.356193843048811
+    ],
+    "alpha_d": 1.0,
+    "alpha_over_c2": 0.7373577200084729,
+    "c1": 0.27302693617196855,
+    "c2": 1.356193843048811,
+    "dt": 0.02,
+    "kd": 2.2,
+    "kp": 3.5,
+    "mu": 1.0,
+    "notes": "Template PD flat-space constants with Q=I in continuous Lyapunov equation; not empirical switched nonlinear decay.",
+    "nu": 0.0
+  },
   "d_underline": 1.0,
   "gate": "Gate 3",
   "no_mode_mismatch_warning": false,
+  "provenance": {
+    "config_path": "configs/system.yaml",
+    "git_commit": "d870074be7e3d84bd66af44ab9111b8e9a79edc7",
+    "source": "gate3_constants",
+    "timestamp": "2026-03-03T20:07:41.612344+00:00"
+  },
+  "schema_version": "1.0",
   "switch_count_with_blending": 7,
   "switch_count_without_blending": 7
 }

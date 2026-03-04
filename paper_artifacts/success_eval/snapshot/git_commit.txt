@@ -1,33 +1,45 @@
-HEAD: 3add447b1283c712e40bb47752372e171c9f36d7
+HEAD: d870074be7e3d84bd66af44ab9111b8e9a79edc7
 
 status --porcelain:
- M .gitignore
-D  results/.DS_Store
-D  results/gate1/gate1_interswitch_hist.png
-D  results/gate1/gate1_rates.png
-D  results/gate1/gate1_summary.json
-D  results/gate1/topo_failures.jsonl
-D  results/gate2/gate2_rank_summary.json
-D  results/gate3/blending_assert_window.csv
-D  results/gate3/constants_table.json
-D  results/gate3/jump_histogram.png
-D  results/gate3/mismatch_vs_rho_loglog.png
-D  results/gate3/u_udot_timeseries.png
-D  results/gate3p5/satisfiability_vs_tau_d.png
-D  results/gate3p5/stability_margin_report.json
-D  results/gate4/J_by_tau_and_blending.png
-D  results/gate4/error_envelope_by_tau.png
-D  results/gate4/error_spike_by_tau.png
-D  results/gate4/error_spike_instant_by_noise.png
-D  results/gate4/error_spike_instant_by_tau.png
-D  results/gate4/gate4_summary.csv
-D  results/gate4/jump_ratio_by_tau_and_blending.png
-D  results/gate4/switch_rate_by_noise.png
-D  results/gate4/switch_rate_by_tau.png
-D  results/reachset/R_bounds.json
-D  src/.DS_Store
+ M configs/experiments.yaml
+ M configs/system.yaml
+ M paper_artifacts/success_eval/README.md
+ M paper_artifacts/success_eval/gate1/gate1_summary.json
+ M paper_artifacts/success_eval/gate3/constants_table.json
+ M paper_artifacts/success_eval/gate4/J_by_tau_and_blending.png
+ M paper_artifacts/success_eval/gate4/error_envelope_by_tau.png
+ M paper_artifacts/success_eval/gate4/error_spike_by_tau.png
+ M paper_artifacts/success_eval/gate4/error_spike_instant_by_noise.png
+ M paper_artifacts/success_eval/gate4/error_spike_instant_by_tau.png
+ M paper_artifacts/success_eval/gate4/gate4_summary.csv
+ M paper_artifacts/success_eval/gate4/jump_ratio_by_tau_and_blending.png
+ M paper_artifacts/success_eval/gate4/switch_rate_by_noise.png
+ M paper_artifacts/success_eval/gate4/switch_rate_by_tau.png
+ M paper_artifacts/success_eval/snapshot/configs/experiments.yaml
+ M paper_artifacts/success_eval/snapshot/configs/system.yaml
+ M paper_artifacts/success_eval/snapshot/git_commit.txt
+ M paper_artifacts/success_eval/snapshot/src_versions.txt
+ M scripts/make_success_eval.sh
  M src/control/closed_loop.py
-?? paper_artifacts/
-?? scripts/
-?? src/experiments/baseline_demo.py
-?? tools/
+ M src/flatness/recursion.py
+ M src/hybrid/ordering.py
+ M src/verify/gate1_graph.py
+ M src/verify/gate3_constants.py
+ M src/verify/gate3p5_satisfiability.py
+ M src/verify/gate4_selftest.py
+ M src/verify/gate4_stability_inequality.py
+ M src/verify/reachset.py
+ M tools/export_success_eval.py
+?? paper_artifacts/success_eval/gate3p5/
+?? paper_artifacts/success_eval/gate4/epsilon_tradeoff.json
+?? paper_artifacts/success_eval/gate4/jump_ratio_vs_epsilon.png
+?? paper_artifacts/success_eval/gate4/switch_rate_vs_epsilon.png
+?? paper_artifacts/success_eval/gateB/
+?? paper_artifacts/success_eval/gateR/
+?? paper_artifacts/success_eval/gateS/
+?? paper_artifacts/success_eval/metric_ablation/
+?? paper_artifacts/success_eval/run_manifest.json
+?? src/experiments/metric_ablation.py
+?? src/verify/gateB_blend_transient.py
+?? src/verify/gateR_envelope_invariance.py
+?? src/verify/gateS_sensitivity.py

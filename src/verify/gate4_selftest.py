@@ -36,6 +36,12 @@ def _print_result(name: str, ok: bool, detail: str, level: str = "PASS") -> None
 def run_selftest(config_path: str) -> int:
     failures = 0
     warnings = 0
+    exp_cfg = load_config(config_path)
+    sys_cfg = load_config(exp_cfg.base_system_config)
+    g4_cfg = exp_cfg.gate4 if hasattr(exp_cfg, "gate4") else sys_cfg.gate4
+    enable_eps = bool(getattr(g4_cfg, "enable_epsilon_sweep", False))
+    epsilon_values = [float(v) for v in list(getattr(g4_cfg, "epsilon_values", []))]
+    expect_epsilon_col = bool(enable_eps and len(epsilon_values) > 1)
 
     # Run Gate 4 first; this also exercises alignment assertions in _error_series.
     csv_path = run_gate4(config_path)
@@ -96,6 +102,8 @@ def run_selftest(config_path: str) -> int:
         "num_switches",
         "avg_time_between_switches",
     }
+    if expect_epsilon_col:
+        required.add("epsilon")
     missing = required - cols
     ok_d = len(missing) == 0
     _print_result("Test D (CSV schema)", ok_d, "columns present" if ok_d else f"missing={sorted(missing)}")
@@ -104,8 +112,6 @@ def run_selftest(config_path: str) -> int:
     # -----------------------
     # y_ref alignment check
     # -----------------------
-    exp_cfg = load_config(config_path)
-    sys_cfg = load_config(exp_cfg.base_system_config)
     n = int(sys_cfg.system.N)
     x0 = np.concatenate([np.array(sys_cfg.reference.base, dtype=float), np.zeros(n, dtype=float)])
     sim = simulate_closed_loop(
@@ -122,7 +128,14 @@ def run_selftest(config_path: str) -> int:
     # -----------------------
     # Behavior sanity checks
     # -----------------------
-    rows_00 = [r for r in rows if float(r["noise_delta"]) == 0.0 and float(r["tau_d"]) == 0.0]
+    ref_eps = float(getattr(sys_cfg.ordering, "epsilon", 0.0))
+    rows_00 = [
+        r
+        for r in rows
+        if float(r["noise_delta"]) == 0.0
+        and float(r["tau_d"]) == 0.0
+        and (("epsilon" not in r) or (not expect_epsilon_col) or abs(float(r["epsilon"]) - ref_eps) < 1e-12)
+    ]
     rows_false = [r for r in rows_00 if not _parse_bool(r["blending"])]
     rows_true = [r for r in rows_00 if _parse_bool(r["blending"])]
 
@@ -184,6 +197,39 @@ def run_selftest(config_path: str) -> int:
     for b, taus, means in trend_lines:
         print(f"  blending={b} tau={taus} mean_switch_rate={means}")
 
+    # Optional epsilon trend checks (warning-only), using tau_d=0 and blending=True.
+    if expect_epsilon_col:
+        eps_trend_ok = True
+        eps_ratio_ok = True
+        rows_eps = [r for r in rows if _parse_bool(r["blending"]) and float(r["tau_d"]) == 0.0]
+        noise_vals = sorted({float(r["noise_delta"]) for r in rows_eps})
+        for nd in noise_vals:
+            rn = [r for r in rows_eps if float(r["noise_delta"]) == nd]
+            eps_vals = sorted({float(r["epsilon"]) for r in rn})
+            sw = []
+            jr = []
+            for eps in eps_vals:
+                re = [r for r in rn if float(r["epsilon"]) == eps]
+                sw.append(_mean(re, "switch_rate"))
+                jr.append(_mean(re, "jump_ratio"))
+            if sw and sw[-1] > sw[0] * 1.1 + 1e-12:
+                eps_trend_ok = False
+            if jr and jr[-1] > jr[0] * 1.1 + 1e-12:
+                eps_ratio_ok = False
+            print(f"  eps trend noise={nd} eps={eps_vals} switch_rate={sw} jump_ratio={jr}")
+        if eps_trend_ok and eps_ratio_ok:
+            _print_result("Test I (epsilon trends)", True, "broadly non-increasing for blending=True at tau_d=0")
+        else:
+            warnings += 1
+            _print_result(
+                "Test I (epsilon trends)",
+                True,
+                "not broadly non-increasing for all noise levels; inspect printed epsilon trend table",
+                level="WARN",
+            )
+    else:
+        _print_result("Test I (epsilon trends)", True, "epsilon sweep disabled or single epsilon")
+
     # -----------------------
     # Plot artifact checks
     # -----------------------
@@ -198,6 +244,13 @@ def run_selftest(config_path: str) -> int:
         plot_dir / "jump_ratio_by_tau_and_blending.png",
         plot_dir / "switch_rate_by_noise.png",
     ]
+    if expect_epsilon_col:
+        expected_plots.extend(
+            [
+                plot_dir / "switch_rate_vs_epsilon.png",
+                plot_dir / "jump_ratio_vs_epsilon.png",
+            ]
+        )
     missing_plots = [p.name for p in expected_plots if not p.exists()]
     ok_plots = len(missing_plots) == 0
     _print_result("Plot artifacts", ok_plots, "all present" if ok_plots else f"missing={missing_plots}")

@@ -31,6 +31,7 @@ def run_reachset(cfg_path: str) -> Path:
 
     traj_mins = []
     traj_maxs = []
+    visited_points: list[np.ndarray] = []
     outside_eps = 0
     total_samples = 0
 
@@ -43,6 +44,7 @@ def run_reachset(cfg_path: str) -> Path:
             options=SimOptions(blending_on=False, noise_delta=0.0, seed=int(cfg.seed) + run),
         )
         x_hist = sim["x"]
+        visited_points.append(np.asarray(x_hist, dtype=float))
         traj_mins.append(np.min(x_hist, axis=0))
         traj_maxs.append(np.max(x_hist, axis=0))
 
@@ -71,8 +73,28 @@ def run_reachset(cfg_path: str) -> Path:
         "fraction_outside_X_epsilon": float(outside_eps / max(total_samples, 1)),
     }
 
+    # Legacy output kept for compatibility with existing commands.
     out_path = out_dir / "R_bounds.json"
     dump_json(out_path, payload)
+
+    points = np.vstack(visited_points) if visited_points else np.zeros((0, int(2 * cfg.system.N)), dtype=float)
+    np.savez(out_dir / "reachset_points.npz", x=points)
+
+    reachset_cfg = getattr(cfg, "reachset", None)
+    method = str(getattr(reachset_cfg, "method", "bbox")) if reachset_cfg is not None else "bbox"
+    quantiles = getattr(reachset_cfg, "quantiles", [0.01, 0.99]) if reachset_cfg is not None else [0.01, 0.99]
+    reach_payload = {
+        "method": method,
+        "quantiles": quantiles,
+        "bbox_low": R_min.tolist(),
+        "bbox_high": R_max.tolist(),
+        "state_dim": int(2 * cfg.system.N),
+        "mc_runs": mc_runs,
+        "horizon": horizon,
+        "seed": int(cfg.seed),
+        "fraction_outside_X_epsilon": float(outside_eps / max(total_samples, 1)),
+    }
+    dump_json(out_dir / "reachset.json", reach_payload)
     return out_path
 
 

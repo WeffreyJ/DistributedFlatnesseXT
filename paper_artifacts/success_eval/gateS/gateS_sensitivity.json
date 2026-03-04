@@ -1,0 +1,13 @@
+{
+  "S_candidate_median": 0.0,
+  "S_max": 0.3362701022159434,
+  "S_median": 0.2830668438341322,
+  "S_min": 0.0,
+  "S_p90": 0.3279916993610977,
+  "corr_S_candidate_vs_S": null,
+  "corr_S_vs_tie_gap": null,
+  "gate": "Gate S",
+  "num_episodes": 6,
+  "num_samples": 1000,
+  "tie_gap_delta": 0.05
+}

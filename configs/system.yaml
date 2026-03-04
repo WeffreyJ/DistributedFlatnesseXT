@@ -14,6 +14,9 @@ system:
   k_wake: 0.35
   wake_surrogate_mode: "pi_upstream"
 ordering:
+  metric: "s_metric"
+  metric_seed: 101
+  wake_metric_gain: 1.0
   epsilon: 0.06
   lockout_sec: 0.35
   lockout_samples: 18  # TODO: enforce sample lockout jointly with time lockout
@@ -39,6 +42,12 @@ x0:
   x2: [-0.25, 0.25]
 gate1:
   mc_runs: 12
+  export_negative_vignette: false
+  vignette_out_dir: "results/vignette_negative"
+  vignette_prefer: "cycle"  # cycle|topo|either
+  vignette_graph_mode: "sim"  # sim|physical_forward_only|physical_all_edges
+  vignette_window: 80
+  vignette_max_episodes: 200
 gate3:
   run_horizon: 18.0
 gate4:
@@ -46,3 +55,50 @@ gate4:
   tau_d_values: [0.0, 0.15, 0.35, 0.6]
   blending: [false, true]
   noise_delta_values: [0.0, 0.01, 0.03, 0.06]
+flat:
+  # zeta_r layout in closed-loop logs: [y, ydot, v]
+  zeta_layout:
+    y: [0, 3]
+    ydot: [3, 6]
+    v: [6, 9]
+logging:
+  store_phi: false
+  store_phi_debug: false
+verify:
+  gate3p5:
+    constants_source: "gate3"  # gate3|manual
+    manual_constants:
+      mu: 1.0
+      alpha_over_c2: 0.1
+      Kd: 10
+      dt: 0.02
+  gateS:
+    enabled: true
+    mc_runs: 10
+    max_samples: 2000
+    tie_gap_delta: 0.05
+    require_adjacent: true
+    blending_on: false
+  gateR:
+    enabled: true
+    samples: 200
+    horizon_steps: 300
+    escape_tol: 0.0
+    boundary_sampling: "faces"
+    blending_on: true
+    noise_delta: 0.0
+  gateB:
+    enabled: true
+    mc_runs: 10
+    tau_d_values: [0.0, 0.15, 0.35, 0.6]
+    noise_delta: 0.0
+certificate:
+  mode: "template"   # template|empirical
+  confidence_delta: 0.001
+metric_ablation:
+  enabled: true
+  metrics: ["s_metric", "x_position", "wake_influence", "random_fixed", "constant"]
+  mc_runs: 6
+  gate4_mc_runs: 3
+  tie_gap_delta: 0.05
+  max_samples_gateS: 1000

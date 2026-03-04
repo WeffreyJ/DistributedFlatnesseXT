@@ -4,11 +4,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+from datetime import datetime, timezone
 from pathlib import Path
+import subprocess
 import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.linalg import solve_continuous_lyapunov
 
 from src.config import load_config
 from src.control.closed_loop import SimOptions, simulate_closed_loop
@@ -48,6 +51,13 @@ def _window_rows(sim: dict, center_k: int, width: int = 10) -> list[dict[str, fl
     return rows
 
 
+def _git_head() -> str:
+    try:
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        return "UNKNOWN"
+
+
 def run_gate3(cfg_path: str) -> Path:
     cfg = load_config(cfg_path)
     out_dir = make_results_dir("gate3")
@@ -76,6 +86,24 @@ def run_gate3(cfg_path: str) -> Path:
     d_underline = min_singular_pivot(sim_off["x"][0], cfg.system)
     c_overline = float(2.0 * cfg.system.a_downwash * (cfg.system.N - 1))
     L_psi = float(1.0 + c_overline)
+    certificate_cfg = getattr(cfg, "certificate", None)
+    certificate_mode = str(getattr(certificate_cfg, "mode", "template"))
+    confidence_delta = float(getattr(certificate_cfg, "confidence_delta", 1.0e-3))
+
+    # Template constants used by Gate 3.5 unless an empirical mode is implemented.
+    kp = float(cfg.controller.kp)
+    kd = float(cfg.controller.kd)
+    A = np.array([[0.0, 1.0], [-kp, -kd]], dtype=float)
+    P = solve_continuous_lyapunov(A.T, -np.eye(2))
+    eigP = np.linalg.eigvalsh(P)
+    c1 = float(np.min(eigP))
+    c2 = float(np.max(eigP))
+    alpha = 1.0
+    mu = 1.0
+    alpha_over_c2 = float(alpha / max(c2, 1.0e-12))
+    Kd = int(getattr(cfg.ordering, "lockout_samples", max(1, int(np.ceil(cfg.ordering.lockout_sec / cfg.system.dt)))))
+    dt = float(cfg.system.dt)
+    nu = 0.0
 
     u_off = np.asarray(sim_off["u_applied"])
     u_on = np.asarray(sim_on["u_applied"])
@@ -109,6 +137,33 @@ def run_gate3(cfg_path: str) -> Path:
             writer.writerows(rows)
 
     payload = {
+        "schema_version": "1.0",
+        "certificate_mode": certificate_mode,
+        "constants": {
+            "mu": float(mu),
+            "alpha_over_c2": float(alpha_over_c2),
+            "alpha_d": float(alpha),
+            "c1": float(c1),
+            "c2": float(c2),
+            "nu": float(nu),
+            "Kd": int(Kd),
+            "dt": float(dt),
+            "kp": float(kp),
+            "kd": float(kd),
+            "P_eigs": [float(v) for v in eigP],
+            "notes": "Template PD flat-space constants with Q=I in continuous Lyapunov equation; not empirical switched nonlinear decay.",
+        },
+        "confidence": {
+            "type": "scenario" if certificate_mode == "empirical" else "none",
+            "delta": float(confidence_delta),
+            "num_samples": int(len(sim_on["k"])) if certificate_mode == "empirical" else 0,
+        },
+        "provenance": {
+            "source": "gate3_constants",
+            "config_path": str(cfg_path),
+            "git_commit": _git_head(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
         "gate": "Gate 3",
         "d_underline": float(d_underline),
         "c_overline": c_overline,

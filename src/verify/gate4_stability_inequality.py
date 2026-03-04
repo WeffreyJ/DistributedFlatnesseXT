@@ -10,6 +10,7 @@ jump effects. This gate separates those via:
 from __future__ import annotations
 
 import argparse
+import copy
 import csv
 from pathlib import Path
 
@@ -18,7 +19,7 @@ import numpy as np
 
 from src.config import load_config
 from src.control.closed_loop import SimOptions, simulate_closed_loop
-from src.verify.utils import make_results_dir
+from src.verify.utils import dump_json, make_results_dir
 
 
 def _sample_x0(cfg, rng: np.random.Generator) -> np.ndarray:
@@ -123,6 +124,43 @@ def _plot_by_tau(
     plt.close(fig)
 
 
+def _plot_by_epsilon(
+    out_path: Path,
+    rows: list[dict[str, float | int | bool]],
+    epsilon_values: list[float],
+    field: str,
+    title: str,
+    ylabel: str,
+    blending: bool,
+) -> None:
+    fig, ax = plt.subplots(figsize=(7, 4))
+    noise_vals = sorted({float(r["noise_delta"]) for r in rows if bool(r["blending"]) == blending})
+    for nd in noise_vals:
+        xs = []
+        ys = []
+        for eps in epsilon_values:
+            vals = [
+                float(r[field])
+                for r in rows
+                if bool(r["blending"]) == blending
+                and float(r["noise_delta"]) == float(nd)
+                and float(r["epsilon"]) == float(eps)
+            ]
+            if vals:
+                xs.append(float(eps))
+                ys.append(float(np.mean(vals)))
+        if xs:
+            ax.plot(xs, ys, marker="o", label=f"noise={nd:g}")
+    ax.set_xlabel("epsilon")
+    ax.set_ylabel(ylabel)
+    ax.set_title(title)
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def run_gate4(cfg_path: str) -> Path:
     exp_cfg = load_config(cfg_path)
     sys_cfg = load_config(exp_cfg.base_system_config)
@@ -134,85 +172,96 @@ def run_gate4(cfg_path: str) -> Path:
 
     out_dir = make_results_dir("gate4")
     dt = float(sys_cfg.system.dt)
+    base_epsilon = float(getattr(sys_cfg.ordering, "epsilon", 0.0))
     spike_window_sec = float(getattr(g4, "spike_window_sec", 0.2))
     W = max(1, int(spike_window_sec / max(dt, 1.0e-9)))
+    enable_eps = bool(getattr(g4, "enable_epsilon_sweep", False))
+    epsilon_values = [float(v) for v in list(getattr(g4, "epsilon_values", [base_epsilon]))]
+    if not enable_eps:
+        epsilon_values = [base_epsilon]
+    if not epsilon_values:
+        epsilon_values = [base_epsilon]
 
     rows: list[dict[str, float | int | bool]] = []
 
     for tau_idx, tau_d in enumerate(g4.tau_d_values):
         for noise_idx, noise_delta in enumerate(g4.noise_delta_values):
-            for run in range(int(g4.mc_runs)):
-                # Pair trajectories across blending modes by sharing x0 for same (tau, noise, run).
-                x0_seed = int(sys_cfg.seed) + 404 + 100000 * tau_idx + 1000 * noise_idx + run
-                rng_x0 = np.random.default_rng(x0_seed)
-                x0 = _sample_x0(sys_cfg, rng_x0)
-                for blending in g4.blending:
-                    sim = simulate_closed_loop(
-                        sys_cfg,
-                        x0=x0,
-                        options=SimOptions(
-                            blending_on=bool(blending),
-                            noise_delta=float(noise_delta),
-                            seed=int(sys_cfg.seed) + 10000 + run,
-                            lockout_sec_override=float(tau_d),
-                        ),
-                    )
+            for epsilon in epsilon_values:
+                for run in range(int(g4.mc_runs)):
+                    # Pair trajectories across blending modes and epsilon by sharing x0 for same (tau, noise, run).
+                    x0_seed = int(sys_cfg.seed) + 404 + 100000 * tau_idx + 1000 * noise_idx + run
+                    rng_x0 = np.random.default_rng(x0_seed)
+                    x0 = _sample_x0(sys_cfg, rng_x0)
+                    for blending in g4.blending:
+                        sys_local = copy.deepcopy(sys_cfg)
+                        sys_local.ordering.epsilon = float(epsilon)
+                        sim = simulate_closed_loop(
+                            sys_local,
+                            x0=x0,
+                            options=SimOptions(
+                                blending_on=bool(blending),
+                                noise_delta=float(noise_delta),
+                                seed=int(sys_cfg.seed) + 10000 + run,
+                                lockout_sec_override=float(tau_d),
+                            ),
+                        )
 
-                    e = _error_series(sim, sys_cfg)
-                    err_env = _compute_error_envelope(sim, sys_cfg)
-                    err_outside, err_spike = _split_switch_windows(
-                        e=e,
-                        switch_steps=[int(v) for v in sim["switch_steps"]],
-                        W=W,
-                    )
-                    err_spike_inst = _error_spike_instant(
-                        e=e,
-                        switch_steps=[int(v) for v in sim["switch_steps"]],
-                    )
-                    assert err_spike >= err_outside - 1.0e-12
+                        e = _error_series(sim, sys_local)
+                        err_env = _compute_error_envelope(sim, sys_local)
+                        err_outside, err_spike = _split_switch_windows(
+                            e=e,
+                            switch_steps=[int(v) for v in sim["switch_steps"]],
+                            W=W,
+                        )
+                        err_spike_inst = _error_spike_instant(
+                            e=e,
+                            switch_steps=[int(v) for v in sim["switch_steps"]],
+                        )
+                        assert err_spike >= err_outside - 1.0e-12
 
-                    num_switches = int(len(sim["switch_steps"]))
-                    sw_rate = float(num_switches / max(float(sim["horizon"]), 1e-9))
-                    if num_switches >= 2:
-                        avg_dt_switch = float(np.mean(np.diff(np.asarray(sim["switch_times"], dtype=float))))
-                    else:
-                        avg_dt_switch = float(sim["horizon"])
+                        num_switches = int(len(sim["switch_steps"]))
+                        sw_rate = float(num_switches / max(float(sim["horizon"]), 1e-9))
+                        if num_switches >= 2:
+                            avg_dt_switch = float(np.mean(np.diff(np.asarray(sim["switch_times"], dtype=float))))
+                        else:
+                            avg_dt_switch = float(sim["horizon"])
 
-                    u_applied = np.asarray(sim["u_applied"])
-                    u_old = np.asarray(sim["u_old"])
-                    u_new = np.asarray(sim["u_new"])
-                    applied_jumps = []
-                    raw_jumps = []
-                    for k in sim["switch_steps"]:
-                        if 1 <= k < len(u_applied):
-                            applied_jumps.append(float(np.linalg.norm(u_applied[k] - u_applied[k - 1])))
-                            raw_jumps.append(float(np.linalg.norm(u_new[k] - u_old[k])))
-                    J = float(max(applied_jumps)) if applied_jumps else 0.0
-                    J_raw = float(max(raw_jumps)) if raw_jumps else 0.0
-                    eps_ratio = 1.0e-9
-                    if J_raw < 1.0e-8:
-                        jump_ratio = 0.0
-                    else:
-                        jump_ratio = float(J / (J_raw + eps_ratio))
+                        u_applied = np.asarray(sim["u_applied"])
+                        u_old = np.asarray(sim["u_old"])
+                        u_new = np.asarray(sim["u_new"])
+                        applied_jumps = []
+                        raw_jumps = []
+                        for k in sim["switch_steps"]:
+                            if 1 <= k < len(u_applied):
+                                applied_jumps.append(float(np.linalg.norm(u_applied[k] - u_applied[k - 1])))
+                                raw_jumps.append(float(np.linalg.norm(u_new[k] - u_old[k])))
+                        J = float(max(applied_jumps)) if applied_jumps else 0.0
+                        J_raw = float(max(raw_jumps)) if raw_jumps else 0.0
+                        eps_ratio = 1.0e-9
+                        if J_raw < 1.0e-8:
+                            jump_ratio = 0.0
+                        else:
+                            jump_ratio = float(J / (J_raw + eps_ratio))
 
-                    rows.append(
-                        {
-                            "tau_d": float(tau_d),
-                            "blending": bool(blending),
-                            "noise_delta": float(noise_delta),
-                            "run": int(run),
-                            "error_envelope": err_env,
-                            "error_outside_switch": err_outside,
-                            "error_spike_windowed": err_spike,
-                            "error_spike_instant": err_spike_inst,
-                            "num_switches": num_switches,
-                            "avg_time_between_switches": avg_dt_switch,
-                            "switch_rate": sw_rate,
-                            "J": J,
-                            "J_raw": J_raw,
-                            "jump_ratio": jump_ratio,
-                        }
-                    )
+                        rows.append(
+                            {
+                                "tau_d": float(tau_d),
+                                "epsilon": float(epsilon),
+                                "blending": bool(blending),
+                                "noise_delta": float(noise_delta),
+                                "run": int(run),
+                                "error_envelope": err_env,
+                                "error_outside_switch": err_outside,
+                                "error_spike_windowed": err_spike,
+                                "error_spike_instant": err_spike_inst,
+                                "num_switches": num_switches,
+                                "avg_time_between_switches": avg_dt_switch,
+                                "switch_rate": sw_rate,
+                                "J": J,
+                                "J_raw": J_raw,
+                                "jump_ratio": jump_ratio,
+                            }
+                        )
 
     csv_path = out_dir / "gate4_summary.csv"
     with csv_path.open("w", newline="", encoding="utf-8") as f:
@@ -220,6 +269,7 @@ def run_gate4(cfg_path: str) -> Path:
             f,
             fieldnames=[
                 "tau_d",
+                "epsilon",
                 "blending",
                 "noise_delta",
                 "run",
@@ -239,7 +289,11 @@ def run_gate4(cfg_path: str) -> Path:
         writer.writerows(rows)
 
     # For dwell-time plots, isolate noise_delta=0 to highlight tau_d trend cleanly.
-    rows_tau = [r for r in rows if float(r["noise_delta"]) == 0.0]
+    rows_tau = [
+        r
+        for r in rows
+        if float(r["noise_delta"]) == 0.0 and float(r["epsilon"]) == float(base_epsilon)
+    ]
 
     _plot_by_tau(
         out_path=out_dir / "error_envelope_by_tau.png",
@@ -295,7 +349,7 @@ def run_gate4(cfg_path: str) -> Path:
         ylabel="mean(J / (J_raw + eps))",
     )
 
-    # Keep existing noise trend plot across all tau values.
+    # Keep existing noise trend plot across all tau values at baseline epsilon.
     fig, ax = plt.subplots(figsize=(7, 4))
     for blending in [False, True]:
         xs = []
@@ -304,7 +358,9 @@ def run_gate4(cfg_path: str) -> Path:
             vals = [
                 float(r["switch_rate"])
                 for r in rows
-                if bool(r["blending"]) == blending and float(r["noise_delta"]) == float(nd)
+                if bool(r["blending"]) == blending
+                and float(r["noise_delta"]) == float(nd)
+                and float(r["epsilon"]) == float(base_epsilon)
             ]
             if vals:
                 xs.append(float(nd))
@@ -322,7 +378,11 @@ def run_gate4(cfg_path: str) -> Path:
 
     # Optional additional view: instant spike versus noise at tau_d = 0.
     fig, ax = plt.subplots(figsize=(7, 4))
-    rows_noise = [r for r in rows if float(r["tau_d"]) == 0.0]
+    rows_noise = [
+        r
+        for r in rows
+        if float(r["tau_d"]) == 0.0 and float(r["epsilon"]) == float(base_epsilon)
+    ]
     for blending in [False, True]:
         xs = []
         ys = []
@@ -345,6 +405,59 @@ def run_gate4(cfg_path: str) -> Path:
     fig.tight_layout()
     fig.savefig(out_dir / "error_spike_instant_by_noise.png", dpi=150)
     plt.close(fig)
+
+    # Epsilon tradeoff summaries and plots (default focus: blending=True).
+    eps_records: list[dict[str, float | bool]] = []
+    for b in [False, True]:
+        for nd in sorted({float(r["noise_delta"]) for r in rows}):
+            for eps in epsilon_values:
+                sub = [
+                    r
+                    for r in rows
+                    if bool(r["blending"]) == b
+                    and float(r["noise_delta"]) == float(nd)
+                    and float(r["epsilon"]) == float(eps)
+                ]
+                if not sub:
+                    continue
+                eps_records.append(
+                    {
+                        "blending": bool(b),
+                        "noise_delta": float(nd),
+                        "epsilon": float(eps),
+                        "mean_switch_rate": float(np.mean([float(rr["switch_rate"]) for rr in sub])),
+                        "median_jump_ratio": float(np.median([float(rr["jump_ratio"]) for rr in sub])),
+                    }
+                )
+
+    dump_json(
+        out_dir / "epsilon_tradeoff.json",
+        {
+            "enable_epsilon_sweep": bool(enable_eps),
+            "epsilon_values": [float(v) for v in epsilon_values],
+            "baseline_epsilon": float(base_epsilon),
+            "records": eps_records,
+        },
+    )
+
+    _plot_by_epsilon(
+        out_path=out_dir / "switch_rate_vs_epsilon.png",
+        rows=rows,
+        epsilon_values=[float(v) for v in epsilon_values],
+        field="switch_rate",
+        title="Gate 4: switch_rate vs epsilon (blending=True)",
+        ylabel="mean switch rate [1/s]",
+        blending=True,
+    )
+    _plot_by_epsilon(
+        out_path=out_dir / "jump_ratio_vs_epsilon.png",
+        rows=rows,
+        epsilon_values=[float(v) for v in epsilon_values],
+        field="jump_ratio",
+        title="Gate 4: jump_ratio vs epsilon (blending=True)",
+        ylabel="mean jump_ratio",
+        blending=True,
+    )
 
     return csv_path
 
