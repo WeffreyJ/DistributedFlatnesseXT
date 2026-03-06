@@ -10,6 +10,10 @@ Title referenced in the draft:
 
 This file is the canonical documentation pointer so future changes can be traced back to the source draft.
 
+For full reproducibility instructions (environment setup, gate-by-gate CLI, plotting, artifact/hash checks):
+
+- `REPRODUCIBILITY_GUIDE.md`
+
 ## Wake Surrogate Mode
 
 The repository includes an additional coupling mode:

@@ -1,9 +1,13 @@
 {
   "J_max_baseline": 0.0,
   "J_max_hybrid": 0.04056116028109219,
+  "J_max_switching_no_blend": 0.6874882375058018,
   "J_raw_max_hybrid": 0.656418321268567,
+  "J_raw_max_switching_no_blend": 0.6564184909268713,
   "jump_ratio_hybrid": 0.061791633330577564,
+  "jump_ratio_switching_no_blend": 1.0473322216863932,
   "switch_count_baseline": 0,
   "switch_count_hybrid": 9,
+  "switch_count_switching_no_blend": 9,
   "warning": null
 }

@@ -26,7 +26,11 @@ def _sample_x0(cfg, seed: int) -> np.ndarray:
 
 
 def _traj_metrics(sim: dict) -> dict[str, np.ndarray]:
-    t = np.asarray(sim["t"])[:-1]
+    t_control = sim.get("t_control", None)
+    if t_control is None:
+        t = np.asarray(sim["t"])[:-1]
+    else:
+        t = np.asarray(t_control, dtype=float)
     u = np.asarray(sim["u_applied"])
     u_old = np.asarray(sim["u_old"])
     u_new = np.asarray(sim["u_new"])
@@ -109,6 +113,16 @@ def run_baseline_demo(cfg_path: str, out_dir: str | Path = "results/baseline_dem
             force_fixed_pi=True,
         ),
     )
+    sim_switch_no_blend = simulate_closed_loop(
+        cfg,
+        x0=x0,
+        options=SimOptions(
+            blending_on=False,
+            noise_delta=0.0,
+            seed=int(cfg.seed) + 3001,
+            disable_switching=False,
+        ),
+    )
     sim_hybrid = simulate_closed_loop(
         cfg,
         x0=x0,
@@ -121,41 +135,49 @@ def run_baseline_demo(cfg_path: str, out_dir: str | Path = "results/baseline_dem
     )
 
     m_base = _traj_metrics(sim_baseline)
+    m_switch = _traj_metrics(sim_switch_no_blend)
     m_hyb = _traj_metrics(sim_hybrid)
 
     _write_traj_csv(out / "baseline_traj.csv", sim_baseline, m_base)
+    _write_traj_csv(out / "switch_no_blend_traj.csv", sim_switch_no_blend, m_switch)
     _write_traj_csv(out / "hybrid_traj.csv", sim_hybrid, m_hyb)
 
+    t = m_base["t"]
+    t_du = t[1:] if len(t) > 1 else t
+
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(m_base["t"], m_base["u_norm"], label="baseline (fixed order, no blending)")
-    ax.plot(m_hyb["t"], m_hyb["u_norm"], label="hybrid (switching + blending)")
-    ax.set_xlabel("t [s]")
-    ax.set_ylabel("||u_applied||")
-    ax.set_title("Applied Control Norm: Baseline vs Hybrid")
+    ax.plot(t, m_base["u_norm"], label="fixed / no-switch")
+    ax.plot(t, m_switch["u_norm"], label="switching / no blending")
+    ax.plot(t, m_hyb["u_norm"], label="switching / blending")
+    ax.set_xlabel("time [s]")
+    ax.set_ylabel(r"$\|u_{\mathrm{applied}}\|$")
+    ax.set_title("Applied input magnitude")
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="best", fontsize=8)
+    ax.legend(loc="best", fontsize=9)
     fig.tight_layout()
     fig.savefig(out / "u_applied_timeseries.png", dpi=150)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(m_base["t"], m_base["du_norm"], label="baseline")
-    ax.plot(m_hyb["t"], m_hyb["du_norm"], label="hybrid")
-    ax.set_xlabel("t [s]")
-    ax.set_ylabel("||u[k]-u[k-1]||")
-    ax.set_title("Applied Jump Proxy: Baseline vs Hybrid")
+    ax.plot(t_du, m_base["du_norm"][1:], label="fixed / no-switch")
+    ax.plot(t_du, m_switch["du_norm"][1:], label="switching / no blending")
+    ax.plot(t_du, m_hyb["du_norm"][1:], label="switching / blending")
+    ax.set_xlabel("time [s]")
+    ax.set_ylabel(r"$\|\Delta u\|$")
+    ax.set_title("Applied input increment norm")
     ax.grid(True, alpha=0.3)
-    ax.legend(loc="best", fontsize=8)
+    ax.legend(loc="best", fontsize=9)
     fig.tight_layout()
     fig.savefig(out / "du_norm_timeseries.png", dpi=150)
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(8, 4))
-    ax.plot(m_base["t"], m_base["rho"], label="baseline")
-    ax.plot(m_hyb["t"], m_hyb["rho"], label="hybrid")
+    ax.plot(t, m_base["rho"], label="fixed / no-switch")
+    ax.plot(t, m_switch["rho"], label="switching / no blending")
+    ax.plot(t, m_hyb["rho"], label="switching / blending")
     ax.set_xlabel("t [s]")
     ax.set_ylabel("rho")
-    ax.set_title("Ordering Margin rho: Baseline vs Hybrid")
+    ax.set_title("Ordering Margin rho")
     ax.grid(True, alpha=0.3)
     ax.legend(loc="best", fontsize=8)
     fig.tight_layout()
@@ -163,8 +185,11 @@ def run_baseline_demo(cfg_path: str, out_dir: str | Path = "results/baseline_dem
     plt.close(fig)
 
     J_base = float(m_base["J"][0])
+    J_switch = float(m_switch["J"][0])
     J_hyb = float(m_hyb["J"][0])
+    J_raw_switch = float(m_switch["J_raw"][0])
     J_raw_hyb = float(m_hyb["J_raw"][0])
+    jump_ratio_switch = float(m_switch["jump_ratio"][0])
     jump_ratio_hyb = float(m_hyb["jump_ratio"][0])
 
     warning = None
@@ -175,10 +200,14 @@ def run_baseline_demo(cfg_path: str, out_dir: str | Path = "results/baseline_dem
 
     summary = {
         "J_max_baseline": J_base,
+        "J_max_switching_no_blend": J_switch,
         "J_max_hybrid": J_hyb,
+        "J_raw_max_switching_no_blend": J_raw_switch,
         "J_raw_max_hybrid": J_raw_hyb,
+        "jump_ratio_switching_no_blend": jump_ratio_switch,
         "jump_ratio_hybrid": jump_ratio_hyb,
         "switch_count_baseline": int(len(sim_baseline["switch_steps"])),
+        "switch_count_switching_no_blend": int(len(sim_switch_no_blend["switch_steps"])),
         "switch_count_hybrid": int(len(sim_hybrid["switch_steps"])),
         "warning": warning,
     }

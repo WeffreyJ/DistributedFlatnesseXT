@@ -73,6 +73,66 @@ def _plot_bar(labels: list[str], values: list[float], title: str, ylabel: str, o
     plt.close(fig)
 
 
+def _plot_status_aware_scatter(rows: list[dict[str, float | str]], out_path: Path) -> None:
+    if not rows:
+        return
+
+    finite_jump = [
+        float(r["Gate4_jump_ratio_median"])
+        for r in rows
+        if np.isfinite(float(r["Gate4_jump_ratio_median"]))
+    ]
+    finite_s = [
+        float(r.get("GateS_effective_p90", r.get("GateS_S_p90_nonzero", r["GateS_S_p90"])))
+        for r in rows
+        if np.isfinite(float(r.get("GateS_effective_p90", r.get("GateS_S_p90_nonzero", r["GateS_S_p90"]))))
+    ]
+    if finite_jump:
+        y_fail = max(max(finite_jump) * 1.15, 1.0)
+    else:
+        y_fail = 1.0
+    if finite_s:
+        x_min = min(finite_s)
+        x_max = max(finite_s)
+    else:
+        x_min, x_max = 0.0, 1.0
+    x_span = max(x_max - x_min, 1.0e-3)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.axhline(y_fail, color="crimson", linestyle="--", linewidth=1.0, alpha=0.6, label="Gate4 unavailable")
+
+    for idx, row in enumerate(rows):
+        name = str(row["metric_name"])
+        status = str(row["status"])
+        x_raw = float(row.get("GateS_effective_p90", row.get("GateS_S_p90_nonzero", row["GateS_S_p90"])))
+        y_raw = float(row["Gate4_jump_ratio_median"])
+        x = x_raw if np.isfinite(x_raw) else (x_min - 0.05 * x_span)
+        # Deterministic small jitter makes overlapping labels visible with small metric sets.
+        jitter = ((idx % 5) - 2) * 0.008 * x_span
+        x_plot = x + jitter
+
+        if np.isfinite(y_raw):
+            marker = "o" if status == "ok" else "^"
+            color = "tab:blue" if status == "ok" else "tab:orange"
+            y_plot = y_raw
+        else:
+            marker = "x"
+            color = "crimson"
+            y_plot = y_fail
+
+        ax.scatter([x_plot], [y_plot], marker=marker, color=color, s=52, alpha=0.9)
+        ax.annotate(name, (x_plot, y_plot), fontsize=8, xytext=(4, 3), textcoords="offset points")
+
+    ax.set_xlabel("GateS effective p90 (swap or candidate)")
+    ax.set_ylabel("Gate4 median jump_ratio")
+    ax.set_title("Metric Ablation: Status-aware Sensitivity vs Jump Ratio")
+    ax.grid(True, alpha=0.3)
+    ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def run_metric_ablation(system_config: str, out: str | None = None) -> Path:
     sys_path = Path(system_config)
     cfg = load_config(sys_path)
@@ -146,6 +206,9 @@ def run_metric_ablation(system_config: str, out: str | None = None) -> Path:
         gs = {} if any(e.startswith("gateS:") for e in errors) else _safe_read_json(Path("results/gateS/gateS_sensitivity.json"))
         gb = {} if any(e.startswith("gateB:") for e in errors) else _safe_read_json(Path("results/gateB/gateB.json"))
 
+        s_p90 = float(gs.get("S_p90", 0.0))
+        s_p90_nonzero = float(gs.get("S_p90_nonzero", 0.0))
+        s_candidate_p90_nonzero = float(gs.get("S_candidate_p90_nonzero", 0.0))
         rows.append(
             {
                 "metric_name": metric,
@@ -153,7 +216,11 @@ def run_metric_ablation(system_config: str, out: str | None = None) -> Path:
                 "errors": ";".join(errors),
                 "Gate1_DAG_pass_rate": float(g1.get("dag_rate_mean", 0.0)),
                 "Gate1_topo_pass_rate": float(g1.get("topo_pass_rate_mean", 0.0)),
-                "GateS_S_p90": float(gs.get("S_p90", 0.0)),
+                "GateS_S_p90": s_p90,
+                "GateS_S_p90_nonzero": s_p90_nonzero,
+                "GateS_candidate_p90_nonzero": s_candidate_p90_nonzero,
+                "GateS_effective_p90": max(s_p90_nonzero, s_candidate_p90_nonzero),
+                "GateS_S_nonzero_fraction": float(gs.get("S_nonzero_fraction", 0.0)),
                 "GateS_S_max": float(gs.get("S_max", 0.0)),
                 "GateB_max_e_blend_p90": float(gb.get("max_e_p90", 0.0)),
                 "Gate4_jump_ratio_median": jump_ratio_med,
@@ -173,6 +240,10 @@ def run_metric_ablation(system_config: str, out: str | None = None) -> Path:
                 "Gate1_DAG_pass_rate",
                 "Gate1_topo_pass_rate",
                 "GateS_S_p90",
+                "GateS_S_p90_nonzero",
+                "GateS_candidate_p90_nonzero",
+                "GateS_effective_p90",
+                "GateS_S_nonzero_fraction",
                 "GateS_S_max",
                 "GateB_max_e_blend_p90",
                 "Gate4_jump_ratio_median",
@@ -212,6 +283,22 @@ def run_metric_ablation(system_config: str, out: str | None = None) -> Path:
         ylabel="S_p90",
         out_path=out_dir / "metric_compare_bar_Sp90.png",
     )
+    s_nonzero_vals = [float(r["GateS_S_p90_nonzero"]) for r in valid_rows]
+    _plot_bar(
+        labels,
+        s_nonzero_vals,
+        title="Metric Ablation: GateS S_p90 (nonzero-only)",
+        ylabel="S_p90_nonzero",
+        out_path=out_dir / "metric_compare_bar_Sp90_nonzero.png",
+    )
+    s_effective_vals = [float(r["GateS_effective_p90"]) for r in valid_rows]
+    _plot_bar(
+        labels,
+        s_effective_vals,
+        title="Metric Ablation: GateS effective p90 (swap/candidate)",
+        ylabel="effective_p90",
+        out_path=out_dir / "metric_compare_bar_S_effective_p90.png",
+    )
 
     if valid_rows:
         fig, ax = plt.subplots(figsize=(6, 4.5))
@@ -225,6 +312,7 @@ def run_metric_ablation(system_config: str, out: str | None = None) -> Path:
         fig.tight_layout()
         fig.savefig(out_dir / "metric_compare_scatter_Sp90_vs_jump_ratio.png", dpi=150)
         plt.close(fig)
+    _plot_status_aware_scatter(rows, out_dir / "metric_compare_scatter_status_aware.png")
 
     return csv_path
 

@@ -20,12 +20,17 @@ def _sample_x0(cfg, rng: np.random.Generator) -> np.ndarray:
     return np.concatenate([x1, x2], axis=0)
 
 
-def run_reachset(cfg_path: str) -> Path:
+def run_reachset(
+    cfg_path: str,
+    samples: int | None = None,
+    method: str | None = None,
+    quantiles: list[float] | None = None,
+) -> Path:
     cfg = load_config(cfg_path)
     out_dir = make_results_dir("reachset")
     rng = seed_rng(int(cfg.seed))
 
-    mc_runs = int(cfg.reachset.mc_runs)
+    mc_runs = int(samples) if samples is not None else int(cfg.reachset.mc_runs)
     horizon = float(cfg.reachset.horizon)
     shrink = float(cfg.reachset.shrink_margin)
 
@@ -81,11 +86,15 @@ def run_reachset(cfg_path: str) -> Path:
     np.savez(out_dir / "reachset_points.npz", x=points)
 
     reachset_cfg = getattr(cfg, "reachset", None)
-    method = str(getattr(reachset_cfg, "method", "bbox")) if reachset_cfg is not None else "bbox"
-    quantiles = getattr(reachset_cfg, "quantiles", [0.01, 0.99]) if reachset_cfg is not None else [0.01, 0.99]
+    reachset_method = str(getattr(reachset_cfg, "method", "bbox")) if reachset_cfg is not None else "bbox"
+    reachset_quantiles = getattr(reachset_cfg, "quantiles", [0.01, 0.99]) if reachset_cfg is not None else [0.01, 0.99]
+    if method is not None:
+        reachset_method = str(method)
+    if quantiles is not None:
+        reachset_quantiles = [float(v) for v in quantiles]
     reach_payload = {
-        "method": method,
-        "quantiles": quantiles,
+        "method": reachset_method,
+        "quantiles": reachset_quantiles,
         "bbox_low": R_min.tolist(),
         "bbox_high": R_max.tolist(),
         "state_dim": int(2 * cfg.system.N),
@@ -101,8 +110,23 @@ def run_reachset(cfg_path: str) -> Path:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compute reachable trimmed set R")
     parser.add_argument("--config", required=True, help="Path to system YAML config")
+    parser.add_argument("--samples", type=int, default=None, help="Override Monte Carlo rollouts")
+    parser.add_argument("--method", default=None, help="Metadata tag for reachset method (e.g., bbox)")
+    parser.add_argument(
+        "--quantiles",
+        type=float,
+        nargs=2,
+        default=None,
+        metavar=("Q_LOW", "Q_HIGH"),
+        help="Optional quantile metadata pair for reachset export",
+    )
     args = parser.parse_args()
-    path = run_reachset(args.config)
+    path = run_reachset(
+        cfg_path=args.config,
+        samples=args.samples,
+        method=args.method,
+        quantiles=[float(args.quantiles[0]), float(args.quantiles[1])] if args.quantiles is not None else None,
+    )
     print(f"Wrote {path}")
 
 

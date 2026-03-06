@@ -1,45 +1,57 @@
-HEAD: d870074be7e3d84bd66af44ab9111b8e9a79edc7
+HEAD: 6bcc75178c64d470e55bf3d0fe6b288deb8c0aee
 
 status --porcelain:
- M configs/experiments.yaml
- M configs/system.yaml
+ M README.md
  M paper_artifacts/success_eval/README.md
+ M paper_artifacts/success_eval/baseline_demo/baseline_demo_summary.json
+ M paper_artifacts/success_eval/baseline_demo/du_norm_timeseries.png
+ M paper_artifacts/success_eval/baseline_demo/rho_timeseries.png
+ M paper_artifacts/success_eval/baseline_demo/u_applied_timeseries.png
  M paper_artifacts/success_eval/gate1/gate1_summary.json
  M paper_artifacts/success_eval/gate3/constants_table.json
+ M paper_artifacts/success_eval/gate3p5/gate3p5.json
+ M paper_artifacts/success_eval/gate3p5/stability_margin_report.json
  M paper_artifacts/success_eval/gate4/J_by_tau_and_blending.png
  M paper_artifacts/success_eval/gate4/error_envelope_by_tau.png
  M paper_artifacts/success_eval/gate4/error_spike_by_tau.png
  M paper_artifacts/success_eval/gate4/error_spike_instant_by_noise.png
  M paper_artifacts/success_eval/gate4/error_spike_instant_by_tau.png
- M paper_artifacts/success_eval/gate4/gate4_summary.csv
  M paper_artifacts/success_eval/gate4/jump_ratio_by_tau_and_blending.png
+ M paper_artifacts/success_eval/gate4/jump_ratio_vs_epsilon.png
  M paper_artifacts/success_eval/gate4/switch_rate_by_noise.png
  M paper_artifacts/success_eval/gate4/switch_rate_by_tau.png
- M paper_artifacts/success_eval/snapshot/configs/experiments.yaml
+ M paper_artifacts/success_eval/gate4/switch_rate_vs_epsilon.png
+ M paper_artifacts/success_eval/gateB/blend_windows.csv
+ M paper_artifacts/success_eval/gateB/duration_hist.png
+ M paper_artifacts/success_eval/gateB/gateB.json
+ M paper_artifacts/success_eval/gateB/max_e_hist.png
+ M paper_artifacts/success_eval/gateB/max_e_vs_Jraw.png
+ M paper_artifacts/success_eval/gateS/S_hist.png
+ M paper_artifacts/success_eval/gateS/S_vs_tie_gap.png
+ M paper_artifacts/success_eval/gateS/gateS_sensitivity.json
+ M paper_artifacts/success_eval/gateS/samples.csv
+ M paper_artifacts/success_eval/metric_ablation/metric_ablation.json
+ M paper_artifacts/success_eval/metric_ablation/metric_compare_bar_Sp90.png
+ M paper_artifacts/success_eval/metric_ablation/metric_compare_bar_jump_ratio.png
+ M paper_artifacts/success_eval/metric_ablation/metric_compare_scatter_Sp90_vs_jump_ratio.png
+ M paper_artifacts/success_eval/metric_ablation/metric_table.csv
+ M paper_artifacts/success_eval/run_manifest.json
  M paper_artifacts/success_eval/snapshot/configs/system.yaml
  M paper_artifacts/success_eval/snapshot/git_commit.txt
- M paper_artifacts/success_eval/snapshot/src_versions.txt
+ M paper_artifacts/success_eval/snapshot/pip_freeze.txt
+ M report/TechnicalDocumentation.md
  M scripts/make_success_eval.sh
- M src/control/closed_loop.py
- M src/flatness/recursion.py
- M src/hybrid/ordering.py
- M src/verify/gate1_graph.py
- M src/verify/gate3_constants.py
- M src/verify/gate3p5_satisfiability.py
- M src/verify/gate4_selftest.py
- M src/verify/gate4_stability_inequality.py
+ M src/experiments/baseline_demo.py
+ M src/experiments/metric_ablation.py
+ M src/verify/gateS_sensitivity.py
  M src/verify/reachset.py
  M tools/export_success_eval.py
-?? paper_artifacts/success_eval/gate3p5/
-?? paper_artifacts/success_eval/gate4/epsilon_tradeoff.json
-?? paper_artifacts/success_eval/gate4/jump_ratio_vs_epsilon.png
-?? paper_artifacts/success_eval/gate4/switch_rate_vs_epsilon.png
-?? paper_artifacts/success_eval/gateB/
-?? paper_artifacts/success_eval/gateR/
-?? paper_artifacts/success_eval/gateS/
-?? paper_artifacts/success_eval/metric_ablation/
-?? paper_artifacts/success_eval/run_manifest.json
-?? src/experiments/metric_ablation.py
-?? src/verify/gateB_blend_transient.py
-?? src/verify/gateR_envelope_invariance.py
-?? src/verify/gateS_sensitivity.py
+?? FlatnessDocumentation.pdf
+?? REPRODUCIBILITY_GUIDE.md
+?? paper_artifacts/success_eval/baseline_demo/switch_no_blend_traj.csv
+?? paper_artifacts/success_eval/metric_ablation/metric_compare_bar_S_effective_p90.png
+?? paper_artifacts/success_eval/metric_ablation/metric_compare_bar_Sp90_nonzero.png
+?? paper_artifacts/success_eval/metric_ablation/metric_compare_scatter_status_aware.png
+?? paper_artifacts/success_eval/vignette_negative/
+?? run_experiments.py
+?? run_gate.py

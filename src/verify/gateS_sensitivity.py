@@ -197,17 +197,31 @@ def run_gateS(cfg_path: str) -> Path:
     s_vals = np.asarray([float(r["S"]) for r in rows], dtype=float)
     s_cand = np.asarray([float(r["S_candidate"]) for r in rows], dtype=float)
     tie_vals = np.asarray([float(r["tie_gap_min"]) for r in rows], dtype=float)
+    nonzero_eps = 1.0e-12
+    s_nonzero = s_vals[s_vals > nonzero_eps]
+    s_cand_nonzero = s_cand[s_cand > nonzero_eps]
+    gamma_edge = float(getattr(cfg.system, "gamma_edge", getattr(cfg.system, "gamma", 0.0)))
+    structural_zero_risk = bool(require_adjacent and tie_gap_delta <= gamma_edge)
 
     payload = {
         "gate": "Gate S",
         "num_samples": int(len(rows)),
         "num_episodes": int(mc_runs),
+        "require_adjacent": bool(require_adjacent),
         "tie_gap_delta": tie_gap_delta,
+        "gamma_edge": gamma_edge,
+        "structural_zero_risk": structural_zero_risk,
         "S_min": float(np.min(s_vals)) if s_vals.size else 0.0,
         "S_median": float(np.median(s_vals)) if s_vals.size else 0.0,
         "S_p90": float(np.quantile(s_vals, 0.9)) if s_vals.size else 0.0,
         "S_max": float(np.max(s_vals)) if s_vals.size else 0.0,
+        "S_nonzero_count": int(s_nonzero.size),
+        "S_nonzero_fraction": float(s_nonzero.size / max(len(rows), 1)),
+        "S_p90_nonzero": float(np.quantile(s_nonzero, 0.9)) if s_nonzero.size else 0.0,
         "S_candidate_median": float(np.median(s_cand)) if s_cand.size else 0.0,
+        "S_candidate_nonzero_count": int(s_cand_nonzero.size),
+        "S_candidate_nonzero_fraction": float(s_cand_nonzero.size / max(len(rows), 1)),
+        "S_candidate_p90_nonzero": float(np.quantile(s_cand_nonzero, 0.9)) if s_cand_nonzero.size else 0.0,
         "corr_S_vs_tie_gap": _corr(s_vals.tolist(), tie_vals.tolist()),
         "corr_S_candidate_vs_S": _corr(s_vals.tolist(), s_cand.tolist()),
     }

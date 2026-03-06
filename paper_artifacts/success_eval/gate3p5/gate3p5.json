@@ -13,9 +13,9 @@
   "margin": 0.9999982787141516,
   "provenance": {
     "config_path": "configs/system.yaml",
-    "git_commit": "d870074be7e3d84bd66af44ab9111b8e9a79edc7",
+    "git_commit": "6bcc75178c64d470e55bf3d0fe6b288deb8c0aee",
     "source": "gate3p5_satisfiability",
-    "timestamp": "2026-03-03T20:07:42.258468+00:00"
+    "timestamp": "2026-03-05T16:36:36.894612+00:00"
   },
   "satisfied": true,
   "schema_version": "1.0",

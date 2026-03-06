@@ -2,24 +2,30 @@
 
 Verification-first reference implementation of the toy hybrid state-dependent ordering model from the technical draft.
 
+## Full Documentation
+
+For a complete reviewer walkthrough (environment setup, gate pipeline, CLI/Python usage, plotting, artifact/hash checks):
+
+- [`REPRODUCIBILITY_GUIDE.md`](/Users/jeffreywalker/Downloads/DistributedFlatnessExtension/hybrid_flatness_ext/REPRODUCIBILITY_GUIDE.md)
+
 ## Quickstart
 
 ```bash
 cd hybrid_flatness_ext
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Run gates in order:
 
 ```bash
-python -m src.verify.reachset --config configs/system.yaml
-python -m src.verify.gate1_graph --config configs/system.yaml
-python -m src.verify.gate2_flat_output_rank --config configs/system.yaml
-python -m src.verify.gate3_constants --config configs/system.yaml
-python -m src.verify.gate3p5_satisfiability --config configs/system.yaml
-python -m src.verify.gate4_stability_inequality --config configs/experiments.yaml
+python3 run_gate.py --gate R --samples 25 --method bbox
+python3 run_gate.py --gate 1
+python3 run_gate.py --gate 2
+python3 run_gate.py --gate 3
+python3 run_gate.py --gate 3.5
+python3 run_experiments.py --config configs/experiments.yaml
 ```
 
 Artifacts are written under `results/`.

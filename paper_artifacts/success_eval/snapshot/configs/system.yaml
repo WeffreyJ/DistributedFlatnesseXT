@@ -45,6 +45,7 @@ gate1:
   export_negative_vignette: false
   vignette_out_dir: "results/vignette_negative"
   vignette_prefer: "cycle"  # cycle|topo|either
+  vignette_graph_mode: "sim"  # sim|physical_forward_only|physical_all_edges
   vignette_window: 80
   vignette_max_episodes: 200
 gate3:

@@ -169,7 +169,7 @@ def _write_readme(root: Path) -> None:
 
 ## Reproduce
 ```bash
-python -m tools.export_success_eval --out paper_artifacts/success_eval
+python3 -m tools.export_success_eval --out paper_artifacts/success_eval
 ```
 
 Optional flags:

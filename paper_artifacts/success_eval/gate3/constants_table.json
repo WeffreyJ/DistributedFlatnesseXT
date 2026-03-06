@@ -35,9 +35,9 @@
   "no_mode_mismatch_warning": false,
   "provenance": {
     "config_path": "configs/system.yaml",
-    "git_commit": "d870074be7e3d84bd66af44ab9111b8e9a79edc7",
+    "git_commit": "6bcc75178c64d470e55bf3d0fe6b288deb8c0aee",
     "source": "gate3_constants",
-    "timestamp": "2026-03-03T20:07:41.612344+00:00"
+    "timestamp": "2026-03-05T16:36:36.242701+00:00"
   },
   "schema_version": "1.0",
   "switch_count_with_blending": 7,

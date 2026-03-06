@@ -2,9 +2,9 @@
   "bundle_path": "paper_artifacts/success_eval",
   "config_hashes": {
     "configs/experiments.yaml": "57521a9d64c0b00cb6b427f53b571b2b73813b036c1cfbace526d2addb0ba059",
-    "configs/system.yaml": "4490208dd4bd94b5fccff821e436c8c44f8360ed4d884da27bf16d962d4f08b7"
+    "configs/system.yaml": "6b94ed08bc2e730a65df5e8ffcb48f97fe45db4f24748a8b582d4a34e7863fdc"
   },
   "git_dirty": true,
-  "git_head": "d870074be7e3d84bd66af44ab9111b8e9a79edc7",
+  "git_head": "6bcc75178c64d470e55bf3d0fe6b288deb8c0aee",
   "log_schema_version": "2.0"
 }
