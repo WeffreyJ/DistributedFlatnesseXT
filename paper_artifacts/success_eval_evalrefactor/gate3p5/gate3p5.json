@@ -1,0 +1,23 @@
+{
+  "constants_source": "gate3",
+  "constants_used": {
+    "Kd": 18,
+    "alpha_over_c2": 0.7373577200084729,
+    "dt": 0.02,
+    "mu": 1.0,
+    "source_path": "results/gate3/constants_table.json"
+  },
+  "gate": "Gate 3.5",
+  "interpretation": "template_satisfiability_only",
+  "lhs": 1.721285848418521e-06,
+  "margin": 0.9999982787141516,
+  "provenance": {
+    "config_path": "configs/system.yaml",
+    "git_commit": "01f74170ca85518f969c374e5d3c18a00956f43a",
+    "source": "gate3p5_satisfiability",
+    "timestamp": "2026-03-09T16:17:51.004468+00:00"
+  },
+  "satisfied": true,
+  "schema_version": "1.0",
+  "template_satisfiability_only": true
+}

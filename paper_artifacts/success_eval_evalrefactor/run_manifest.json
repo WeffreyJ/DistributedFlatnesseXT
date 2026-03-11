@@ -1,0 +1,10 @@
+{
+  "bundle_path": "paper_artifacts/success_eval_evalrefactor",
+  "config_hashes": {
+    "configs/experiments.yaml": "57521a9d64c0b00cb6b427f53b571b2b73813b036c1cfbace526d2addb0ba059",
+    "configs/system.yaml": "bbac96b24552281ef34d11c61ab8628da17255670b8438b31646d57025dfcd14"
+  },
+  "git_dirty": true,
+  "git_head": "01f74170ca85518f969c374e5d3c18a00956f43a",
+  "log_schema_version": "2.0"
+}

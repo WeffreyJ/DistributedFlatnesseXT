@@ -14,7 +14,7 @@ def coupling_graph(
     mode: dict | None = None,
     s: np.ndarray | None = None,
 ) -> nx.DiGraph:
-    """Build directed active coupling graph G(x)."""
+    """Build the directed active coupling graph for the selected plant family."""
     g = nx.DiGraph()
     g.add_nodes_from(range(params.N))
     g.add_edges_from(active_edges(x, params, mode=mode, s=s))

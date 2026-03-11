@@ -147,14 +147,14 @@ def run_gateS(cfg_path: str) -> Path:
                 v_slice=(int(v_slice[0]), int(v_slice[1])),
             )
 
-            u_base = psi(build_phi(x=x, zeta=zeta, pi=pi, sys=cfg.system, params=cfg.system), cfg.system)
-            u_swap = psi(build_phi(x=x, zeta=zeta, pi=pi_swap, sys=cfg.system, params=cfg.system), cfg.system)
+            u_base = psi(build_phi(x=x, zeta=zeta, pi=pi, sys=cfg, params=cfg.system), cfg.system)
+            u_swap = psi(build_phi(x=x, zeta=zeta, pi=pi_swap, sys=cfg, params=cfg.system), cfg.system)
             s_val = float(np.linalg.norm(u_swap - u_base))
 
             # Optional narrative metric: compare actual candidate ordering mismatch at same snapshot.
             pi_candidate = [int(v) for v in item["pi_candidate"]]
             u_candidate = psi(
-                build_phi(x=x, zeta=zeta, pi=pi_candidate, sys=cfg.system, params=cfg.system),
+                build_phi(x=x, zeta=zeta, pi=pi_candidate, sys=cfg, params=cfg.system),
                 cfg.system,
             )
             s_candidate = float(np.linalg.norm(u_candidate - u_base))

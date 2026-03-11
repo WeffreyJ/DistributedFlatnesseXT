@@ -1,0 +1,106 @@
+{
+  "figures": [
+    {
+      "manuscript_section_tag": "matched_geometry",
+      "purpose": "Exact same-snapshot identity for the matched reference evaluator.",
+      "relative_path": "figures/matched_geometry/operator_gap_identity.png",
+      "source_artifacts": [
+        "results/gate3_operator_mismatch_tier1/operator_gap_table_tier1.csv"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "matched_geometry",
+      "purpose": "Compare approximate evaluator gap signatures against the matched reference.",
+      "relative_path": "figures/matched_geometry/approximate_evaluator_gap_hist.png",
+      "source_artifacts": [
+        "results/gate2_tier1_order_sensitivity/tier1_order_sensitivity_table.csv"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "matched_geometry",
+      "purpose": "Generic matched-geometry comparison showing severity changes before burden changes.",
+      "relative_path": "figures/matched_geometry/generic_compare.png",
+      "source_artifacts": [
+        "results/tier0_tier1_compare/tier0_tier1_compare.json",
+        "results/tier0_tier1_seed_sweep/tier0_tier1_seed_sweep.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "matched_geometry",
+      "purpose": "Representative matched-geometry designed cases showing controller-relevant deltas.",
+      "relative_path": "figures/matched_geometry/designed_case_compare.png",
+      "source_artifacts": [
+        "results/tier1_extended_discriminative_scenarios/tier1_extended_discriminative_scenarios.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "matched_geometry",
+      "purpose": "Representative Tier-1 selector comparison across legacy, shadow, and active modes.",
+      "relative_path": "figures/matched_geometry/selector_compare.png",
+      "source_artifacts": [
+        "results/edge_boundary_selector_compare/edge_boundary_selector_compare.json",
+        "results/tier1_extended_selector_compare/tier1_extended_selector_compare.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "matched_geometry",
+      "purpose": "Selector mechanism reason counts with explicit zero bars for non-dominant categories.",
+      "relative_path": "figures/matched_geometry/selector_mechanism_audit.png",
+      "source_artifacts": [
+        "results/tier1_selector_mechanism_audit/tier1_selector_mechanism_audit.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "unmatchedness",
+      "purpose": "Cross-family generic unmatchedness comparison across families A/B/C/D.",
+      "relative_path": "figures/unmatchedness/generic_compare_all_families.png",
+      "source_artifacts": [
+        "results/tier2_cross_family_compare/tier2_cross_family_generic_plot_data.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "unmatchedness",
+      "purpose": "Cross-family designed-case pattern relevance comparison.",
+      "relative_path": "figures/unmatchedness/designed_compare_all_families.png",
+      "source_artifacts": [
+        "results/tier2_cross_family_compare/tier2_cross_family_designed_plot_data.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "cross_family",
+      "purpose": "Mechanism comparison between edge-band bias and support-transition bias.",
+      "relative_path": "figures/unmatchedness/pattern_audit_C_vs_D.png",
+      "source_artifacts": [
+        "results/tier2_cross_family_compare/tier2_cross_family_audit_plot_data.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    },
+    {
+      "manuscript_section_tag": "unmatchedness",
+      "purpose": "Detailed support-transition mechanism view for family D.",
+      "relative_path": "figures/unmatchedness/familyD_transition_detail.png",
+      "source_artifacts": [
+        "results/tier2_fourth_residual_pattern_audit/tier2_fourth_residual_pattern_audit.json"
+      ],
+      "source_script": "src/experiments/build_manuscript_figures.py",
+      "status": "built"
+    }
+  ]
+}

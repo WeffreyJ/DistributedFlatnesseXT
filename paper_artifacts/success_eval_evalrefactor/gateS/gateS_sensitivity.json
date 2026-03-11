@@ -1,0 +1,22 @@
+{
+  "S_candidate_median": 0.0,
+  "S_candidate_nonzero_count": 95,
+  "S_candidate_nonzero_fraction": 0.06529209621993128,
+  "S_candidate_p90_nonzero": 0.6661130848772178,
+  "S_max": 0.0,
+  "S_median": 0.0,
+  "S_min": 0.0,
+  "S_nonzero_count": 0,
+  "S_nonzero_fraction": 0.0,
+  "S_p90": 0.0,
+  "S_p90_nonzero": 0.0,
+  "corr_S_candidate_vs_S": null,
+  "corr_S_vs_tie_gap": null,
+  "gamma_edge": 0.08,
+  "gate": "Gate S",
+  "num_episodes": 10,
+  "num_samples": 1455,
+  "require_adjacent": true,
+  "structural_zero_risk": true,
+  "tie_gap_delta": 0.05
+}

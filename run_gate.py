@@ -18,6 +18,8 @@ def _norm_gate(text: str) -> str:
         return "2"
     if tok in {"3", "g3"}:
         return "3"
+    if tok in {"3_op", "3op", "g3op", "op", "operator_mismatch"}:
+        return "3_OP"
     if tok in {"3.5", "3p5", "g3p5"}:
         return "3.5"
     if tok in {"4", "g4"}:
@@ -26,6 +28,8 @@ def _norm_gate(text: str) -> str:
         return "S"
     if tok in {"b", "gateb"}:
         return "B"
+    if tok in {"b_bound", "bbound", "gatebbound", "blend_bound"}:
+        return "B_BOUND"
     if tok == "all":
         return "ALL"
     raise ValueError(f"Unsupported gate selector: {text!r}")
@@ -33,7 +37,7 @@ def _norm_gate(text: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a single verification gate (or all gates).")
-    parser.add_argument("--gate", required=True, help="R|R_env|1|2|3|3.5|4|S|B|all")
+    parser.add_argument("--gate", required=True, help="R|R_env|1|2|3|3_op|3.5|4|S|B|B_bound|all")
     parser.add_argument("--config", default="configs/system.yaml", help="System config path")
     parser.add_argument(
         "--experiments_config",
@@ -91,6 +95,10 @@ def main() -> None:
         from src.verify.gate3_constants import run_gate3
 
         paths.append(run_gate3(args.config))
+    elif gate == "3_OP":
+        from src.verify.gate3_operator_mismatch import run_gate3_operator_mismatch
+
+        paths.append(run_gate3_operator_mismatch(args.config))
     elif gate == "3.5":
         from src.verify.gate3p5_satisfiability import run_gate35
 
@@ -107,6 +115,10 @@ def main() -> None:
         from src.verify.gateB_blend_transient import run_gateB
 
         paths.append(run_gateB(args.config))
+    elif gate == "B_BOUND":
+        from src.verify.gateB_applied_jump_bound import run_gateB_applied_jump_bound
+
+        paths.append(run_gateB_applied_jump_bound(args.config))
     elif gate == "ALL":
         from src.verify.gate1_graph import run_gate1
         from src.verify.gate2_flat_output_rank import run_gate2

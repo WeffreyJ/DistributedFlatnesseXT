@@ -1,0 +1,10 @@
+{
+  "J_raw_start_median": 0.0,
+  "duration_steps_max": 2.0,
+  "duration_steps_median": 2.0,
+  "gate": "Gate B",
+  "max_e_max": 1.464960599479404,
+  "max_e_median": 0.00566172461085625,
+  "max_e_p90": 0.8406486312062671,
+  "num_blend_windows": 366
+}

@@ -1,6 +1,7 @@
 seed: 7
 system:
   N: 3
+  plant_family: "tier0"  # tier0|tier1|tier2
   dt: 0.02
   horizon: 20.0
   a_downwash: 0.55
@@ -13,6 +14,74 @@ system:
   wake_decay_L: 2.0
   k_wake: 0.35
   wake_surrogate_mode: "pi_upstream"
+  tier1:
+    geometry:
+      lateral_offsets: [0.0, 0.6, -0.6]
+      vertical_offsets: [0.0, 0.0, 0.0]
+    kernel:
+      gain: 0.35
+      longitudinal_decay: 2.0
+      r_core: 0.5
+      alpha_h: 1.0
+      power_p: 1.0
+    edge:
+      transverse_radius: 2.5
+  tier2:
+    nominal:
+      use_tier1_nominal: true
+    residual:
+      enabled: false
+      amplitude: 0.05
+      mode: "transverse_skew"  # zero|transverse_skew|longitudinal_bias|edge_band_bias|support_transition_bias
+      transverse_scale: 1.0
+      bias_gain: 0.25
+      longitudinal_scale: 0.35
+      longitudinal_bias_center: 0.35
+      longitudinal_bias_gain: 0.35
+      edge_band_longitudinal_center: 0.08
+      edge_band_longitudinal_scale: 0.10
+      edge_band_transverse_center: 2.30
+      edge_band_transverse_scale: 0.25
+      edge_band_lateral_scale: 1.0
+      edge_band_gain: 0.40
+      support_transition_sigma_ell: 0.10
+      support_transition_sigma_rho: 0.20
+      support_transition_m_ell: 0.03
+      support_transition_m_rho: 0.15
+      support_transition_alpha_ell: 1.0
+      support_transition_alpha_rho: 0.35
+      support_transition_k_v: 18.0
+      support_transition_k_shell: 20.0
+      support_transition_rho_core: 0.5
+      support_transition_rho_floor: 0.05
+      support_transition_shell_tol: 0.05
+      support_transition_gain: 0.30
+evaluation:
+  mode: "upstream_truncated"  # upstream_truncated|full|local_window
+  local_window_agents: 1
+  log_outputs: true
+selection:
+  mode: "shadow_lexicographic"  # legacy|shadow_lexicographic|active_lexicographic
+  enable_shadow_logging: true
+  max_candidates: 3
+  use_tie_pair_swap_candidate: true
+monitor:
+  enabled: false
+  mode: shadow
+  tie_margin_warn: 0.02
+  predicted_gap_warn: 0.25
+  switch_rate_window_sec: 1.0
+  edge_churn_window_sec: 1.0
+  max_switches_per_sec: 5.0
+  max_edge_churn_per_sec: 8.0
+  conditioning_warn_threshold: 10.0
+  moderate_risk_action: hold_current
+  high_risk_action: fallback_fixed_order
+fallback:
+  enabled: true
+  mode: hold_then_fixed
+  consecutive_high_risk_steps: 10
+  fixed_order: [0, 1, 2]
 ordering:
   metric: "s_metric"
   metric_seed: 101

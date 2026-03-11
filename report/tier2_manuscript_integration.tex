@@ -1,0 +1,178 @@
+% =========================================================
+% TIER-2 SKELETAL MANUSCRIPT INTEGRATION
+% =========================================================
+
+\subsection{Tier-2 nominal-plus-residual extension}
+\label{subsec:tier2_formulation}
+
+To move beyond the matched Tier-1 setting while preserving a disciplined controller architecture, we define a Tier-2 nominal-plus-residual extension. The Tier-2 plant is written as
+\begin{equation}
+\ddot s_i
+=
+u_i
++
+\Delta_i^{\pi,\mathrm{nom}}(x)
++
+r_i^\pi(x),
+\label{eq:tier2_plant}
+\end{equation}
+where $\Delta_i^{\pi,\mathrm{nom}}(x)$ denotes the nominal interaction model retained by the controller-side evaluator, and $r_i^\pi(x)$ is a structured plant-side residual term. The controller reconstruction remains nominal:
+\begin{equation}
+u_i^\pi
+=
+v_i
+-
+\Delta_i^{\pi,\mathrm{nom}}(x).
+\label{eq:tier2_controller}
+\end{equation}
+
+This construction preserves the controller-side flatness inversion semantics while introducing disciplined partial unmatchedness at the plant level. The central Tier-2 object is therefore the nominal-vs-plant mismatch
+\begin{equation}
+M_\pi(x)
+:=
+\Delta_{\mathrm{plant}}(x)-E_\pi^{\mathrm{nom}}(x),
+\label{eq:tier2_mismatch_object}
+\end{equation}
+where $E_\pi^{\mathrm{nom}}(x)$ denotes the controller-side nominal evaluator and $\Delta_{\mathrm{plant}}(x)$ denotes the plant interaction actually applied in the Tier-2 dynamics. Tier-2 is thus not a new controller law; it is a controlled plant-mismatch extension of the nominal hybrid architecture.
+
+\paragraph{Tier-2 scope.}
+The Tier-2 goal is not to claim high-fidelity realism in an absolute sense. Rather, the goal is to study whether the hybrid switching story remains interpretable under structured plant-side residual mismatch while keeping the nominal controller architecture fixed.
+
+\subsection{Tier-2 verification protocol}
+\label{subsec:tier2_protocol}
+
+The Tier-2 evidence is organized in four layers.
+
+\paragraph{Layer 1: reduction and gap diagnostics.}
+We first verify that residual-disabled Tier-2 reduces exactly to Tier-1 nominal behavior. Only after this reduction witness is established do we activate nonzero residual terms and measure nominal-vs-plant mismatch.
+
+\paragraph{Layer 2: generic frozen-controller comparison.}
+For each residual family we compare generic Tier-1 nominal and Tier-2 residual-enabled rollouts under a shared frozen-controller setup, and then repeat the comparison over paired seed sweeps.
+
+\paragraph{Layer 3: designed scenario comparisons.}
+We then construct scenario families intended to amplify mismatch-sensitive effects, including near-switch, mixed-boundary, dwell, and band-occupancy cases.
+
+\paragraph{Layer 4: mechanism audits.}
+Finally, for each residual family we audit stepwise pattern changes to determine whether mismatch acts primarily through switch-timing perturbation, candidate-history perturbation, or broader restructuring of the hybrid controller state.
+
+\subsection{Tier-2 reduction witness}
+\label{subsec:tier2_reduction}
+
+The first Tier-2 verification step is an exact reduction witness. With the residual branch disabled, Tier-2 nominal interaction is defined to reduce exactly to the Tier-1 nominal interaction, both pointwise and at the rollout level. The reduction witness checks:
+\begin{enumerate}
+    \item exact pointwise equality of nominal evaluator and nominal plant interaction,
+    \item zero plant-side residual,
+    \item exact equality of rollout-level switching, blending, jump, and tracking series.
+\end{enumerate}
+
+The resulting witness confirms that residual-disabled Tier-2 reproduces Tier-1 nominal behavior exactly. This step is essential because it establishes that subsequent Tier-2 effects arise from the residual branch itself rather than from unintended changes to the nominal controller pathway.
+
+\subsection{Residual family I: transverse skew}
+\label{subsec:tier2_transverse_skew}
+
+The first Tier-2 residual family is a plant-side geometry-dependent skew term, denoted \texttt{transverse\_skew}. This residual shares the Tier-1 active-edge support and introduces a small signed bias based on lateral asymmetry while keeping controller-side evaluator semantics unchanged.
+
+\paragraph{Gap diagnostic.}
+The first residual is live, structured, and nonzero. Under the nominal controller evaluator, the induced mismatch
+\[
+\Delta_{\mathrm{plant}}(x)-E_\pi^{\mathrm{nom}}(x)
+\]
+is measurable and order-sensitive through the nominal evaluator comparison, even though the plant-side interaction itself remains fixed at a given snapshot.
+
+\paragraph{Generic rollout comparison.}
+On shared frozen-controller rollouts and across paired seed sweeps, \texttt{transverse\_skew} robustly increases nominal-vs-plant mismatch burden and slightly worsens tracking and jump severity. However, it does not change
+\texttt{switch\_count},
+\texttt{transition\_start\_count}, or
+\texttt{blend\_active\_steps}.
+
+\paragraph{Designed mismatch-sensitive scenarios.}
+Designed scenarios reveal that this first residual is not merely a generic severity perturbation. In several cases it changes switch timing, candidate histories, and effective candidate histories without changing aggregate burden counts.
+
+\paragraph{Mechanism audit.}
+The mechanism audit shows that these pattern differences are concentrated near marginal switching regions. The dominant effect is switch-timing perturbation in low-tie-margin regions, while candidate-history perturbation is present but secondary. Thus, the first residual perturbs hybrid timing structure without converting that perturbation into a change in aggregate burden under the frozen controller.
+
+\subsection{Count-conversion attempts for the first residual}
+\label{subsec:tier2_count_conversion_attempt}
+
+Because the first residual produced timing and pattern changes without burden changes, we next constructed amplified count-conversion scenarios, including prolonged near-switch dwell, repeated grazing, and mixed-boundary dwell cases. These scenarios were intended to convert timing perturbations into changes in switch and blend counts.
+
+The result is negative but informative: despite sustained pattern differences, the first residual still does not change aggregate switching burden. We therefore interpret the first residual as exhausted as a burden-changing mechanism under the current frozen controller.
+
+\subsection{Residual family II: longitudinal bias}
+\label{subsec:tier2_longitudinal_bias}
+
+The second Tier-2 residual family, denoted \texttt{longitudinal\_bias}, was introduced after the first residual failed to produce burden conversion. This residual also remains plant-side only and shares Tier-1 active-edge support, but it applies a localized bias within a longitudinal band of the active interaction window.
+
+Conceptually, this residual is intended to persist in regions where marginal switching decisions are likely to remain sensitive for multiple steps. It is therefore a stronger burden-changing candidate than a purely transverse skew.
+
+\paragraph{Gap diagnostic.}
+The second residual is live, structured, nonzero, and clearly distinct from the first residual family. It produces larger nominal-vs-plant mismatch magnitudes and substantial order-sensitive mismatch under the nominal evaluator comparison.
+
+\paragraph{Generic rollout comparison.}
+On the shared frozen rollout, \texttt{longitudinal\_bias} produces larger increases in mismatch burden, tracking degradation, and jump severity than \texttt{transverse\_skew}. The paired seed sweep confirms that these severity and mismatch increases are robust across all tested seeds. Nevertheless, aggregate switching burden remains unchanged:
+\[
+\Delta \texttt{switch\_count}=0,\qquad
+\Delta \texttt{transition\_start\_count}=0,\qquad
+\Delta \texttt{blend\_active\_steps}=0.
+\]
+
+Thus, stronger mismatch alone is still insufficient to induce burden conversion under the frozen controller.
+
+\subsection{Designed scenarios and mechanism audit for the second residual}
+\label{subsec:tier2_longitudinal_mechanism}
+
+We next constructed designed scenario families aligned with the longitudinal-band mechanism, including longitudinal dwell, near-switch longitudinal amplification, mixed-boundary longitudinal alignment, and asymmetric band-occupancy cases.
+
+These cases produce the strongest Tier-2 pattern consequences observed in this work. In all designed second-residual cases, we observe differences in switch timing, candidate histories, and effective candidate histories. However, these broader pattern differences still fail to change aggregate switching burden.
+
+The mechanism audit clarifies the structure of these perturbations. Across the designed cases:
+\begin{itemize}
+    \item pattern-difference steps are concentrated near switch windows,
+    \item tie margins at those steps remain small,
+    \item mismatch norms at those steps are elevated,
+    \item and pattern differences occur near the residual's longitudinal bias band.
+\end{itemize}
+
+The dominant mechanism is again marginal switch-timing perturbation. Candidate and effective-candidate perturbations are secondary, but somewhat stronger and more widespread than in the first residual family.
+
+\subsection{Tier-2 synthesis}
+\label{subsec:tier2_synthesis}
+
+The Tier-2 results support three main conclusions.
+
+\paragraph{First, Tier-2 is a disciplined extension of the nominal hybrid framework.}
+Residual-disabled Tier-2 reduces exactly to Tier-1 nominal behavior, so Tier-2 effects are attributable to structured plant-side mismatch rather than nominal controller changes.
+
+\paragraph{Second, structured residual mismatch has consistent closed-loop consequences.}
+Across both residual families, generic rollouts and seed sweeps show robust increases in:
+\begin{itemize}
+    \item nominal-vs-plant mismatch burden,
+    \item jump severity,
+    \item and mean tracking error.
+\end{itemize}
+
+\paragraph{Third, the dominant hybrid consequence is timing/pattern sensitivity, not burden change.}
+Designed scenarios and mechanism audits show that residual mismatch perturbs switch timing and candidate-pattern histories in low-margin regions. However, neither residual family converts these timing-pattern perturbations into changes in aggregate switching burden under the frozen controller.
+
+\subsection{Tier-2 interpretation}
+\label{subsec:tier2_interpretation}
+
+Tier-2 should therefore be interpreted as a partial-unmatchedness sensitivity section, not as a new controller-improvement result. The strongest current claim is:
+
+\begin{quote}
+Under structured plant-side residual mismatch, the hybrid flatness controller remains interpretable but not insensitive: the dominant effect of mismatch is scenario-dependent perturbation of switch timing and candidate-pattern histories near low-margin switching regions, while aggregate switching burden remains unchanged under the frozen controller.
+\end{quote}
+
+This result broadens the scientific scope of the paper in an important way. Tier-1 establishes controller-relevant consequences inside a matched geometry-aware extension. Tier-2 shows that even after moving into disciplined partial unmatchedness, the hybrid structure remains analyzable: mismatch first manifests as timing and pattern sensitivity before it manifests as burden change.
+
+\paragraph{Current limits of the Tier-2 claim.}
+We do not claim that Tier-2 residuals:
+\begin{itemize}
+    \item change switching burden in general,
+    \item justify controller redesign already,
+    \item or constitute a validated external-model realism layer.
+\end{itemize}
+Instead, Tier-2 currently supports a narrower but stronger claim: interpretable hybrid sensitivity under structured plant-side mismatch.
+
+\paragraph{Relationship to the Tier-1 results.}
+Tier-1 remains the primary controller-consequence branch of the paper. Tier-2 complements it by showing that the hybrid mechanism persists as an interpretable object even when the plant no longer exactly matches the nominal controller evaluator.

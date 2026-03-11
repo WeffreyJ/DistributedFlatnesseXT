@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from src.flatness.evaluation_operator import compute_evaluator
 from src.model.coupling import delta_accel
 
 Phi = dict[tuple[int, int], float]
@@ -28,10 +29,14 @@ def build_phi(
     pi: list[int],
     sys,
     params=None,
+    *,
+    evaluator_output: np.ndarray | None = None,
 ) -> Phi:
     """Build recursion entries Phi_k^i for k=1..3 (r=2 => r+1=3).
 
     This is the snapshot-based entrypoint used by simulation and sensitivity gates.
+    `evaluator_output` is the per-agent correction E_pi(x) used by explicit
+    evaluator-based reconstruction modes.
     """
     p = params if params is not None else sys
     n = int(p.N)
@@ -51,32 +56,15 @@ def build_phi(
             delta_i = k_u * float(np.sum(u_partial[upstream])) if upstream else 0.0
             u_partial[agent] = float(zeta["v"][agent] - delta_i)
             phi[(agent, 3)] = float(u_partial[agent])
-    elif coupling_mode == "downwash":
-        d = delta_accel(x, p)
-        for i in pi:
-            phi[(i, 3)] = float(zeta["v"][i] - d[i])
-    elif coupling_mode == "wake_surrogate":
-        wake_mode = getattr(p, "wake_surrogate_mode", "pi_upstream")
-        if wake_mode == "physical_all_edges":
-            d = delta_accel(x, p)
-            for agent in pi:
-                phi[(agent, 3)] = float(zeta["v"][agent] - d[agent])
-        elif wake_mode == "pi_upstream":
-            k_wake = float(getattr(p, "k_wake", 0.35))
-            L = float(getattr(p, "wake_decay_L", 2.0))
-            wake_Rx = float(getattr(p, "wake_Rx", 6.0))
-            gamma_edge = float(getattr(p, "gamma_edge", getattr(p, "gamma", 0.0)))
-            s = x[:n]
-            for idx_in_order, agent in enumerate(pi):
-                upstream = pi[:idx_in_order]
-                delta_i = 0.0
-                for j in upstream:
-                    dx = float(s[j] - s[agent])
-                    if dx > gamma_edge and dx < wake_Rx:
-                        delta_i += -k_wake * float(np.exp(-dx / max(L, 1.0e-9)))
-                phi[(agent, 3)] = float(zeta["v"][agent] - delta_i)
-        else:
-            raise ValueError(f"Unsupported wake_surrogate_mode={wake_mode!r}")
+    elif coupling_mode in {"downwash", "wake_surrogate"}:
+        d = np.asarray(
+            evaluator_output if evaluator_output is not None else compute_evaluator(x=x, pi=pi, cfg=sys),
+            dtype=float,
+        )
+        if d.shape != (n,):
+            raise ValueError(f"evaluator_output must have shape {(n,)}, got {d.shape}")
+        for agent in pi:
+            phi[(agent, 3)] = float(zeta["v"][agent] - d[agent])
     else:
         raise ValueError(f"Unsupported coupling_mode={coupling_mode!r}")
 
